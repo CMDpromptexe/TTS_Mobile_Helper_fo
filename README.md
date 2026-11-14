@@ -29,6 +29,12 @@ python -m pip install -r requirements.txt
 python server_mobile_actions.py
 ```
 
+## Experimental Table Mode
+
+Open `http://127.0.0.1:5001/table` on the TTS PC, or use the PC's LAN address from a touchscreen on the same trusted network. Table Mode currently provides a separate shared-screen camera control page with overhead and four-sided camera presets. It requires the matching Lua helper script from this checkout.
+
+The camera controls currently center on the world origin. Table Mode does not yet provide touch-to-select, touch-to-move, or native multitouch object dragging. See [the prototype notes](docs/TABLE_MODE.md) for current scope and planned milestones.
+
 ## Troubleshooting
 
 | If you see | Try |
