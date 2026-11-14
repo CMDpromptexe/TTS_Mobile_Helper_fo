@@ -67,6 +67,60 @@ class MobileHelperTest(unittest.TestCase):
     def events(self, phone, name):
         return [event["args"][0] for event in phone.get_received() if event["name"] == name]
 
+    def test_table_camera_requires_admin_and_dispatches_valid_preset(self):
+        self.handshake()
+        self.assertEqual(self.snapshot().status_code, 200)
+
+        admin = self.phone("Red", "table-mode-admin")
+        admin.emit("join", {
+            "color": "Red",
+            "client_id": "table-mode-admin",
+            "is_admin": True,
+        })
+        self.assertTrue(self.events(admin, "join_success"))
+
+        admin.emit("table_camera", {
+            "target_color": "White",
+            "preset": "overhead",
+        })
+        result = self.events(admin, "table_camera_result")
+        self.assertEqual(result[-1]["ok"], True)
+        self.assertEqual(self.sent[-1], {
+            "action": "table_camera",
+            "helper": self.helper,
+            "run": self.run,
+            "target_color": "White",
+            "preset": "overhead",
+        })
+
+    def test_table_camera_rejects_non_admin_and_unknown_presets(self):
+        self.handshake()
+        self.assertEqual(self.snapshot().status_code, 200)
+
+        player = self.phone("Red", "regular-player")
+        player.emit("table_camera", {
+            "target_color": "White",
+            "preset": "overhead",
+        })
+        result = self.events(player, "table_camera_result")
+        self.assertFalse(result[-1]["ok"])
+        self.assertEqual(self.sent, [])
+
+        admin = self.phone("Blue", "table-mode-admin")
+        admin.emit("join", {
+            "color": "Blue",
+            "client_id": "table-mode-admin",
+            "is_admin": True,
+        })
+        self.assertTrue(self.events(admin, "join_success"))
+        admin.emit("table_camera", {
+            "target_color": "White",
+            "preset": "execute arbitrary lua",
+        })
+        result = self.events(admin, "table_camera_result")
+        self.assertFalse(result[-1]["ok"])
+        self.assertEqual(self.sent, [])
+
     def test_health_readiness_expiry_and_new_run(self):
         phone = self.phone("Red")
         self.assertEqual(self.http.get("/health").status_code, 200)
