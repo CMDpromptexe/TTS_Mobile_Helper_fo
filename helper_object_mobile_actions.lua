@@ -370,6 +370,29 @@ function handleExternalMessage_TTSmobile(data)
             end
         end
         scheduleTableScan_TTSmobile("request_hand_sync", 0.1, data.force == true)
+    elseif data.action == "table_camera" then
+        local presets = {
+            overhead = {pitch = 85, yaw = 180, distance = 38},
+            north = {pitch = 55, yaw = 0, distance = 38},
+            east = {pitch = 55, yaw = 90, distance = 38},
+            south = {pitch = 55, yaw = 180, distance = 38},
+            west = {pitch = 55, yaw = 270, distance = 38},
+        }
+        local color = data.target_color
+        local preset = presets[data.preset]
+        if preset and isValidPlayerColor_TTSmobile(color) then
+            local player = safeGetPlayer_TTSmobile(color)
+            if player then
+                safeCall_TTSmobile("Player.lookAt " .. tostring(color), nil, function()
+                    player.lookAt({
+                        position = {x = 0, y = 0, z = 0},
+                        pitch = preset.pitch,
+                        yaw = preset.yaw,
+                        distance = preset.distance,
+                    })
+                end)
+            end
+        end
     end
 end
 
