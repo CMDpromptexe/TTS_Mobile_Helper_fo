@@ -682,6 +682,12 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/table")
+def table_mode_page():
+    """Serve the experimental shared-table camera control surface."""
+    return send_from_directory(str(resource_file_path("static")), "table_mode.html")
+
+
 def protocol_mismatch(received):
     older_helper = received < LUA_PROTOCOL
     direction = "lua_helper" if older_helper else "windows_server"
@@ -936,6 +942,66 @@ def on_join(data):
         join_room(color)
         emit("join_success", {"color": color})
         emit_occupancy_to_all_clients()
+
+
+
+@socketio.on("table_camera")
+def on_table_camera(data):
+    data = data if isinstance(data, dict) else {}
+    target_color = data.get("target_color")
+    preset = data.get("preset")
+    sid = request.sid
+
+    with STATE_LOCK:
+        session = client_sessions.get(sid)
+        if not session or not session.get("is_admin"):
+            emit("table_camera_result", {
+                "ok": False,
+                "message": "Table Mode camera controls require an admin session.",
+            })
+            return
+        if not table_ready:
+            emit("table_camera_result", {
+                "ok": False,
+                "message": "Waiting for the TTS helper to finish syncing.",
+            })
+            return
+        if target_color not in game_state:
+            emit("table_camera_result", {
+                "ok": False,
+                "message": "Choose a valid TTS player color.",
+            })
+            return
+        if preset not in {"overhead", "north", "east", "south", "west"}:
+            emit("table_camera_result", {
+                "ok": False,
+                "message": "Unknown camera preset.",
+            })
+            return
+        message = {
+            "action": "table_camera",
+            "helper": helper_instance,
+            "run": sync_run,
+            "target_color": target_color,
+            "preset": preset,
+        }
+
+    try:
+        get_tts_api_chatgpt().custom_message(message)
+    except Exception as exc:
+        print(f"[TTS] Table Mode camera command failed: {exc}")
+        emit("table_camera_result", {
+            "ok": False,
+            "message": "Could not send the camera command to TTS.",
+        })
+        return
+
+    emit("table_camera_result", {
+        "ok": True,
+        "message": f"Camera command sent for {target_color}.",
+        "target_color": target_color,
+        "preset": preset,
+    })
 
 
 def release_color(session):
