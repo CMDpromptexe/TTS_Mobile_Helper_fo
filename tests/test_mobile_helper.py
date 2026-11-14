@@ -121,6 +121,12 @@ class MobileHelperTest(unittest.TestCase):
         self.assertFalse(result[-1]["ok"])
         self.assertEqual(self.sent, [])
 
+    def test_table_mode_page_is_served(self):
+        response = self.http.get("/table")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Table Mode", response.data)
+        self.assertIn(b"table_mode.js", response.data)
+
     def test_health_readiness_expiry_and_new_run(self):
         phone = self.phone("Red")
         self.assertEqual(self.http.get("/health").status_code, 200)
