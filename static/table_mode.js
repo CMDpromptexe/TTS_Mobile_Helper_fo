@@ -7,6 +7,8 @@
   const objectCount = document.getElementById('object-count');
   const objectDetail = document.getElementById('object-detail');
   const refreshButton = document.getElementById('refresh-objects');
+  const mapVisibilityConfirm = document.getElementById('map-visibility-confirm');
+  const sceneMapContent = document.getElementById('scene-map-content');
   const clientKey = 'tts_table_mode_admin_client_id';
   let clientId = localStorage.getItem(clientKey);
   if (!clientId) {
@@ -49,6 +51,18 @@
 
   function renderObjects(objects) {
     currentObjects = Array.isArray(objects) ? objects : [];
+    if (!mapVisibilityConfirm.checked) {
+      sceneMapContent.hidden = true;
+      objectCount.textContent = 'Map hidden until you confirm this is a public-information table.';
+      objectMap.replaceChildren();
+      const gated = document.createElement('div');
+      gated.className = 'map-empty';
+      gated.textContent = 'Confirm that this game has no hidden-information rules to reveal the scene map.';
+      objectMap.append(gated);
+      objectDetail.textContent = 'The map is hidden by default to reduce accidental disclosure.';
+      return;
+    }
+    sceneMapContent.hidden = false;
     objectCount.textContent = `${currentObjects.length} scene objects · updated from TTS`;
     objectMap.replaceChildren();
     if (!currentObjects.length) {
@@ -132,6 +146,10 @@
 
   socket.on('table_objects_update', data => {
     renderObjects(data?.objects);
+  });
+
+  mapVisibilityConfirm.addEventListener('change', () => {
+    renderObjects(currentObjects);
   });
 
   socket.on('table_objects_request_result', result => {
