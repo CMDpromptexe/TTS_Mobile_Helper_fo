@@ -5,7 +5,7 @@ Table Mode is an experimental touchscreen-first control surface served by the ex
 ## Current proof of concept
 
 - Responsive shared-screen UI with large touch targets.
-- Camera presets sent through the External Editor API custom-message channel and applied by the helper with `Player[color].lookAt(...)`.
+- The overhead preset uses `Player[color].setCameraMode("TopDown")`; the four angled presets use `Player[color].lookAt(...)`.
 - Read-only top-down scene map built from a Lua snapshot of public tabletop objects.
 - Object snapshot includes GUID, display-safe label, type, X/Z position, yaw, bounds footprint, and lock state.
 - Objects in player hands and actively held by a player are filtered out before the snapshot is sent; face-down cards receive a generic label.
@@ -20,7 +20,7 @@ Table Mode is an experimental touchscreen-first control surface served by the ex
 4. Open `http://127.0.0.1:5001/table` on the host PC, or the host's LAN address from a touchscreen on the same trusted network.
 5. Choose a player camera. Use Refresh map to request a fresh scene snapshot.
 
-The camera currently centers on world origin. The scene map is a read-only X/Z projection; it is not a live 3D render and does not yet select or move TTS objects.
+The four angled camera presets currently center on world origin. The TopDown preset uses the native camera mode. The labels North/East/South/West are provisional world-axis labels and need visual confirmation in TTS. The scene map is a read-only X/Z projection; it is not a live 3D render and does not yet move TTS objects.
 
 ## Architecture and compatibility
 
@@ -34,9 +34,9 @@ The camera currently centers on world origin. The scene map is a read-only X/Z p
 ## Verified API facts
 
 - The External Editor API accepts a custom table message and forwards it to the loaded game's `onExternalMessage(data)` handler.
-- `Player.lookAt(parameters)` accepts a center position, pitch, yaw, and distance, and forces third-person camera mode.
+- `Player.setCameraMode("TopDown")` selects TTS's native TopDown camera mode. `Player.lookAt(parameters)` accepts a center position, pitch, yaw, and distance, and forces third-person camera mode.
 - `getAllObjects()` returns the game's objects except hand zones; `getObjects()` includes hand zones.
-- Object APIs expose world position, rotation, and bounds suitable for a 2D scene projection.
+- Object APIs expose world position, rotation, and bounds suitable for a 2D scene projection. Player APIs expose both hand objects and objects currently being held, allowing the helper to omit them from the shared map.
 - The official TTS knowledge base lists touchscreen optimization and local hot-seat multiplayer. That does not establish that the current client exposes a general multitouch API to Lua.
 
 ## What does not require a TTS engine modification
