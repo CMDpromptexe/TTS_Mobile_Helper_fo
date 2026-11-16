@@ -26,3 +26,21 @@ select{background:var(--panel2);color:var(--text);border:1px solid #435267;borde
 footer{padding:0 20px 26px;text-align:center;color:#728294;font-size:11px;line-height:1.5}
 @media(max-width:760px){.stage{grid-template-columns:1fr}.table-preview{height:210px}.camera-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.camera-button{min-height:108px}.camera-button.overhead{grid-column:span 2}.section-heading{align-items:flex-start;flex-direction:column}select{width:100%}}
 @media(orientation:landscape) and (max-height:600px){.topbar{padding-top:10px;padding-bottom:10px}main{padding:14px 22px;gap:12px}.stage{padding:18px;grid-template-columns:.8fr 1.2fr}.table-preview{height:160px}.camera-button{min-height:88px}.controls{padding:18px}}
+
+.scene-map-wrap{min-width:0;border:1px solid var(--line);border-radius:18px;background:#0d141d;padding:14px}
+.scene-map-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.scene-map-toolbar .eyebrow{margin-bottom:3px}
+#object-count{font-size:12px;color:var(--muted)}
+.refresh-button{border:1px solid #4a6b70;border-radius:11px;background:#1d3838;color:var(--accent);padding:11px 14px;min-height:44px;touch-action:manipulation;cursor:pointer}
+.refresh-button:disabled{opacity:.45}
+.object-map{height:clamp(230px,34vw,410px);min-height:230px;border:1px solid #344456;border-radius:13px;position:relative;overflow:hidden;background-color:#17252b;background-image:linear-gradient(#ffffff0c 1px,transparent 1px),linear-gradient(90deg,#ffffff0c 1px,transparent 1px);background-size:24px 24px;touch-action:pan-y}
+.object-map:before{content:"";position:absolute;inset:7%;border:1px dashed #80a89b55;border-radius:10px;pointer-events:none}
+.map-empty{position:absolute;inset:0;display:grid;place-items:center;padding:25px;text-align:center;color:var(--muted);font-size:13px}
+.map-marker{position:absolute;transform:translate(-50%,-50%);width:42px;height:42px;border:2px solid #e3f0ed;border-radius:50%;background:#548e82;color:#071512;box-shadow:0 4px 12px #0009;display:grid;place-items:center;font-size:10px;font-weight:900;cursor:pointer;touch-action:manipulation}
+.map-marker[data-kind="Card"],.map-marker[data-kind="Deck"]{border-radius:7px;background:#e7e2d4;color:#26313b}
+.map-marker[data-kind*="Token"],.map-marker[data-kind*="Chip"]{background:#d6b36c;color:#2d2414}
+.map-marker[data-locked="true"]{outline:3px solid #d6b36c;outline-offset:2px}
+.map-marker[aria-pressed="true"]{border-color:var(--accent2);box-shadow:0 0 0 5px #f3c87933,0 4px 12px #0009}
+.object-detail{min-height:42px;padding:11px 3px 0;color:var(--muted);font-size:12px;line-height:1.55;overflow-wrap:anywhere}
+.object-detail b{color:var(--text)}
+@media(max-width:760px){.scene-map-toolbar{align-items:flex-start}.scene-map-wrap{padding:10px}}
