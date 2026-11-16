@@ -333,6 +333,7 @@ function onObjectEnterZone(zone, object)
     if not requirePythonServer_TTSmobile("onObjectEnterZone") then
         return
     end
+    scheduleObjectScan_TTSmobile("object entered zone", 0.5)
     dlog("onObjectEnterZone")
     if zone and safeObjectTag_TTSmobile(zone) == "Hand" and object and safeObjectTag_TTSmobile(object) == "Card" then
         Wait.time(function()
@@ -352,6 +353,7 @@ function onObjectLeaveZone(zone, object)
     if not requirePythonServer_TTSmobile("onObjectLeaveZone") then
         return
     end
+    scheduleObjectScan_TTSmobile("object left zone", 0.5)
     dlog("onObjectLeaveZone")
     if zone and safeObjectTag_TTSmobile(zone) == "Hand" and object and safeObjectTag_TTSmobile(object) == "Card" then
         local color = getHandZoneColor_TTSmobile(zone)
@@ -400,7 +402,6 @@ function handleExternalMessage_TTSmobile(data)
         scheduleObjectScan_TTSmobile("remote refresh", 0.1, true)
     elseif data.action == "table_camera" then
         local presets = {
-            overhead = {pitch = 85, yaw = 180, distance = 38},
             north = {pitch = 55, yaw = 0, distance = 38},
             east = {pitch = 55, yaw = 90, distance = 38},
             south = {pitch = 55, yaw = 180, distance = 38},
@@ -408,17 +409,23 @@ function handleExternalMessage_TTSmobile(data)
         }
         local color = data.target_color
         local preset = presets[data.preset]
-        if preset and isValidPlayerColor_TTSmobile(color) then
+        if (data.preset == "overhead" or preset) and isValidPlayerColor_TTSmobile(color) then
             local player = safeGetPlayer_TTSmobile(color)
             if player then
-                safeCall_TTSmobile("Player.lookAt " .. tostring(color), nil, function()
-                    player.lookAt({
-                        position = {x = 0, y = 0, z = 0},
-                        pitch = preset.pitch,
-                        yaw = preset.yaw,
-                        distance = preset.distance,
-                    })
-                end)
+                if data.preset == "overhead" then
+                    safeCall_TTSmobile("Player.setCameraMode TopDown " .. tostring(color), nil, function()
+                        player.setCameraMode("TopDown")
+                    end)
+                else
+                    safeCall_TTSmobile("Player.lookAt " .. tostring(color), nil, function()
+                        player.lookAt({
+                            position = {x = 0, y = 0, z = 0},
+                            pitch = preset.pitch,
+                            yaw = preset.yaw,
+                            distance = preset.distance,
+                        })
+                    end)
+                end
             end
         end
     end
