@@ -46,3 +46,7 @@ footer{padding:0 20px 26px;text-align:center;color:#728294;font-size:11px;line-h
 @media(max-width:760px){.scene-map-toolbar{align-items:flex-start}.scene-map-wrap{padding:10px}}
 
 .map-warning{margin:10px 2px 0;color:#e5bd78;font-size:11px;line-height:1.45}
+
+.visibility-confirm{display:flex;align-items:center;gap:12px;min-height:54px;margin:12px 0;padding:12px 14px;border:1px solid #8c754b;border-radius:12px;background:#322b1e;color:#f1d49a;font-size:12px;line-height:1.45;touch-action:manipulation;cursor:pointer}
+.visibility-confirm input{width:22px;height:22px;flex:none;accent-color:#82d8c7}
+#scene-map-content[hidden]{display:none}
