@@ -8,13 +8,13 @@ Table Mode is an experimental touchscreen-first control surface served by the ex
 - Camera presets sent through the External Editor API custom-message channel and applied by the helper with `Player[color].lookAt(...)`.
 - Read-only top-down scene map built from a Lua snapshot of public tabletop objects.
 - Object snapshot includes GUID, display-safe label, type, X/Z position, yaw, bounds footprint, and lock state.
-- Objects in player hands are filtered out before the snapshot is sent; face-down cards receive a generic label.
-- Object snapshots are sent after initial sync and after relevant TTS object events; the UI can request a manual refresh.
+- Objects in player hands and actively held by a player are filtered out before the snapshot is sent; face-down cards receive a generic label.
+- Object snapshots are sent after initial sync and after pick-up/drop, spawn/destroy, rotate, state, zone, and container events; actively held objects and private hand objects are omitted. The UI can request a manual refresh.
 - The existing phone-based player interface remains separate and continues to own private hand display and hand actions.
 
 ## Run
 
-1. Use the matching Python companion server and `helper_object_mobile_actions.lua` from this branch. The helper protocol is now version 2; older releases will correctly report a protocol mismatch.
+1. Use the matching Python companion server and `helper_object_mobile_actions.lua` from this branch. The helper protocol is now version 2. Protocol-aware older builds report a version mismatch; older protocol-less builds may continue syncing existing hand features but will not publish the new scene-object stream.
 2. Start TTS and load the Mobile Helper Lua object into the active table using Additive Load, or paste the matching script into a scripted helper object.
 3. Start the Python companion server on the TTS PC.
 4. Open `http://127.0.0.1:5001/table` on the host PC, or the host's LAN address from a touchscreen on the same trusted network.
@@ -67,7 +67,7 @@ For each, verify initial snapshot, object spawn/drop/rotate/destroy refresh, no 
 
 ## Current limitations and next milestones
 
-1. **Current:** read-only object map and camera presets. Object updates are event-driven, not frame-by-frame; moving an object may not appear in the map until it is dropped or another tracked event occurs.
+1. **Current:** read-only object map and camera presets. Object updates are event-driven, not frame-by-frame; an object is omitted while held and reappears after drop. Physics-driven movement between tracked events can leave the map temporarily stale.
 2. **Next:** add a tap-to-select command path and one-object move/rotate controls with strict server-side allowlisting, stale-position checks, and explicit Lua result acknowledgements.
 3. Add table bounds and center detection to make camera framing adapt to different Workshop tables.
 4. Evaluate native multitouch and physics dragging separately; Lua transforms are not equivalent to native TTS grabbing.
