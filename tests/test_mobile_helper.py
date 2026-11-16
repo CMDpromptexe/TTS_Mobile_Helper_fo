@@ -126,6 +126,7 @@ class MobileHelperTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Table Mode", response.data)
         self.assertIn(b"table_mode.js", response.data)
+        response.close()
 
     def test_table_objects_are_validated_and_sent_only_to_admin_sessions(self):
         self.handshake()
