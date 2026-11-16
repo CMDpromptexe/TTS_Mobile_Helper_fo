@@ -158,7 +158,7 @@ class MobileHelperTest(unittest.TestCase):
         self.assertEqual(updates[-1]["objects"][0]["guid"], "abcdef")
         self.assertFalse(self.events(player, "table_objects_update"))
 
-        invalid = [{**objects[0], "x": float("inf")}]
+        invalid = [{**objects[0], "x": 100001}]
         response = self.post("/table_objects", sequence=2, objects=invalid)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(self.server.table_objects, objects)
