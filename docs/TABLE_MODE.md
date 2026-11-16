@@ -6,9 +6,9 @@ Table Mode is an experimental touchscreen-first control surface served by the ex
 
 - Responsive shared-screen UI with large touch targets.
 - The overhead preset uses `Player[color].setCameraMode("TopDown")`; the four angled presets use `Player[color].lookAt(...)`.
-- Read-only top-down scene map built from a Lua snapshot of public tabletop objects.
+- Read-only top-down scene map built from a Lua snapshot of table objects; it is currently a host-level view, not a per-player visibility-filtered view.
 - Object snapshot includes GUID, display-safe label, type, X/Z position, yaw, bounds footprint, and lock state.
-- Objects in player hands and actively held by a player are filtered out before the snapshot is sent; face-down cards receive a generic label.
+- Objects in player hands and actively held by a player are filtered out before the snapshot is sent; face-down cards receive a generic label. Fog of War, hidden zones, and arbitrary per-player invisible hiders are not filtered.
 - Object snapshots are sent after initial sync and after pick-up/drop, spawn/destroy, rotate, state, zone, and container events; actively held objects and private hand objects are omitted. The UI can request a manual refresh.
 - The existing phone-based player interface remains separate and continues to own private hand display and hand actions.
 
@@ -62,17 +62,21 @@ Run the same helper against an unmodified vanilla table and unmodified Workshop 
 2. Scripted Workshop game with custom object buttons and snap points.
 3. Game with hidden/face-down cards and private player hands.
 4. Game with bags/decks, custom models, and a large object count.
-5. Game with custom hand zones, fog-of-war, and scripted object movement.
+5. Game with custom hand zones, fog-of-war, hidden zones, and scripted object movement. Treat this as a negative privacy test until visibility filtering exists.
 
 For each, verify initial snapshot, object spawn/drop/rotate/destroy refresh, no private hand leakage, map accuracy, camera targeting for seated and spectator colors, and that existing Workshop scripts and mobile hand actions still work.
 
 ## Current limitations and next milestones
 
-1. **Current:** read-only object map and camera presets. Object updates are event-driven, not frame-by-frame; an object is omitted while held and reappears after drop. Physics-driven movement between tracked events can leave the map temporarily stale.
+1. **Current:** read-only host-level object map and camera presets. It omits hand/held objects and masks face-down card names, but does not respect Fog of War, hidden zones, or custom invisibility rules. Do not use the map for hidden-information games yet. Object updates are event-driven, not frame-by-frame; physics-driven movement between tracked events can leave it temporarily stale.
 2. **Next:** add a tap-to-select command path and one-object move/rotate controls with strict server-side allowlisting, stale-position checks, and explicit Lua result acknowledgements.
 3. Add table bounds and center detection to make camera framing adapt to different Workshop tables.
 4. Evaluate native multitouch and physics dragging separately; Lua transforms are not equivalent to native TTS grabbing.
 5. Test compatibility against a representative set of real Workshop games before adding more controls.
+
+## Visibility limitation
+
+The object map is not yet safe for hidden-information games. TTS exposes object hiding and Fog of War configuration, but the reviewed public API does not provide a general per-player visibility query for arbitrary custom hiders. The map is therefore a host-level inventory of scene objects, not a faithful projection of what each player is allowed to see. Keep it off the shared display when a Workshop game relies on Fog of War, hidden zones, or custom `setHiddenFrom`/`setInvisibleTo` behavior.
 
 ## Security note
 
