@@ -80,6 +80,8 @@
     const maxZ = Math.max(...currentObjects.map(item => item.z));
     const rangeX = Math.max(maxX - minX, 8);
     const rangeZ = Math.max(maxZ - minZ, 8);
+    const mapMinX = (minX + maxX) / 2 - rangeX / 2;
+    const mapMinZ = (minZ + maxZ) / 2 - rangeZ / 2;
     const pad = 10;
 
     currentObjects.forEach((object, index) => {
@@ -89,8 +91,8 @@
       marker.dataset.guid = object.guid;
       marker.dataset.kind = object.kind;
       marker.dataset.locked = String(object.locked);
-      marker.style.left = `${pad + ((object.x - minX) / rangeX) * (100 - pad * 2)}%`;
-      marker.style.top = `${pad + ((object.z - minZ) / rangeZ) * (100 - pad * 2)}%`;
+      marker.style.left = `${pad + ((object.x - mapMinX) / rangeX) * (100 - pad * 2)}%`;
+      marker.style.top = `${pad + ((object.z - mapMinZ) / rangeZ) * (100 - pad * 2)}%`;
       marker.textContent = object.kind === 'Card' ? 'C' : object.kind === 'Deck' ? 'D' : String(index + 1);
       marker.title = object.label;
       marker.setAttribute('aria-label', `${object.label}, ${object.kind}`);
