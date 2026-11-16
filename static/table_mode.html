@@ -26,15 +26,21 @@
         <p>The map is a host-level scene snapshot reported by the Lua helper. Camera presets move one selected TTS player's view.</p>
       </div>
       <div class="scene-map-wrap">
-        <div class="scene-map-toolbar">
-          <div><p class="eyebrow">SCENE SNAPSHOT</p><span id="object-count">Waiting for TTS objects…</span></div>
-          <button id="refresh-objects" class="refresh-button" type="button">Refresh map</button>
+        <label class="visibility-confirm">
+          <input id="map-visibility-confirm" type="checkbox">
+          <span>I confirm this table has no hidden-information rules. Show the scene map.</span>
+        </label>
+        <div id="scene-map-content" hidden>
+          <div class="scene-map-toolbar">
+            <div><p class="eyebrow">SCENE SNAPSHOT</p><span id="object-count">Waiting for TTS objects…</span></div>
+            <button id="refresh-objects" class="refresh-button" type="button">Refresh map</button>
+          </div>
+          <div id="object-map" class="object-map" aria-label="Top-down map of tabletop scene objects">
+            <div class="map-empty">Waiting for the Lua helper to send the first scene snapshot…</div>
+          </div>
+          <p class="map-warning">Host-level view only: Fog of War, hidden zones, and custom per-player object hiding are not filtered. This confirmation is a reminder, not a visibility filter.</p>
+          <div id="object-detail" class="object-detail">Tap an object marker to inspect its public name and position.</div>
         </div>
-        <div id="object-map" class="object-map" aria-label="Top-down map of tabletop scene objects">
-          <div class="map-empty">Waiting for the Lua helper to send the first scene snapshot…</div>
-        </div>
-        <p class="map-warning">Host-level view only: Fog of War, hidden zones, and custom per-player object hiding are not filtered yet. Do not display this map during hidden-information games.</p>
-        <div id="object-detail" class="object-detail">Tap an object marker to inspect its public name and position.</div>
       </div>
     </section>
 
