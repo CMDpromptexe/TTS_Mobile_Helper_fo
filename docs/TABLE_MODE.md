@@ -25,6 +25,7 @@ The four angled camera presets currently center on world origin. The TopDown pre
 ## Architecture and compatibility
 
 - **TTS engine:** remains authoritative for object identity, transforms, physics, collisions, scripts, and rendering.
+- **Network boundary:** the companion's LAN connection serves browser interfaces to the host PC; it does not create LAN multiplayer for TTS itself. The TTS session remains one local hot-seat instance or uses TTS's normal Steam peer-to-peer multiplayer.
 - **Lua helper:** uses documented `getAllObjects()`, `Object.getGUID()`, `getPosition()`, `getRotation()`, `getBounds()`, and `Player.getHandObjects()` APIs to collect a sanitized scene snapshot. It uses TTS object events to refresh the snapshot.
 - **Python companion:** validates loopback-only Lua updates, bounds the snapshot size and field ranges, stores the current public scene, and emits it only to admin sessions.
 - **Touchscreen UI:** renders a 2D read-only map and camera controls; it does not inject mouse events or simulate native TTS dragging.
