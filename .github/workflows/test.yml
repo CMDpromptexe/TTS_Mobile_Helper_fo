@@ -27,3 +27,9 @@ jobs:
           node-version: "20"
       - name: Check Table Mode JavaScript syntax
         run: node --check static/table_mode.js
+      - name: Set up Lua 5.2 parser
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.2
+      - name: Check TTS Lua helper syntax
+        run: luac5.2 -p helper_object_mobile_actions.lua
