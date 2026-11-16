@@ -189,7 +189,7 @@ class MobileHelperTest(unittest.TestCase):
             "run": self.run,
         })
 
-    def test_table_mode_page_is_served(self):
+    def test_health_readiness_expiry_and_new_run(self):
         phone = self.phone("Red")
         self.assertEqual(self.http.get("/health").status_code, 200)
         self.assertFalse(self.server.lua_connection_status()["connected"])
