@@ -36,6 +36,7 @@ The four angled camera presets currently center on world origin. The TopDown pre
 
 - The External Editor API accepts a custom table message and forwards it to the loaded game's `onExternalMessage(data)` handler.
 - `Player.setCameraMode("TopDown")` selects TTS's native TopDown camera mode. `Player.lookAt(parameters)` accepts a center position, pitch, yaw, and distance, and forces third-person camera mode.
+- TTS's Lua implementation is based on Lua 5.2. CI runs `luac5.2 -p` against the helper for syntax validation; this does not execute TTS API calls or prove runtime compatibility.
 - `getAllObjects()` returns the game's objects except hand zones; `getObjects()` includes hand zones.
 - Object APIs expose world position, rotation, and bounds suitable for a 2D scene projection. Player APIs expose both hand objects and objects currently being held, allowing the helper to omit them from the shared map.
 - The official TTS knowledge base lists touchscreen optimization and local hot-seat multiplayer. That does not establish that the current client exposes a general multitouch API to Lua.
