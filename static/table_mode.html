@@ -23,18 +23,17 @@
       <div class="stage-copy">
         <span class="stage-kicker">SHARED TABLE</span>
         <h2>Put the table in view.</h2>
-        <p>These controls move the camera for one selected TTS player. They do not yet move or select 3D objects.</p>
+        <p>The map shows public tabletop objects reported by the Lua helper. Camera presets move one selected TTS player's view.</p>
       </div>
-      <div class="table-preview" aria-hidden="true">
-        <div class="table-grid"></div>
-        <div class="table-surface">
-          <div class="board-center"></div>
-          <div class="piece piece-a"></div><div class="piece piece-b"></div>
-          <div class="piece piece-c"></div><div class="piece piece-d"></div>
-          <div class="card-shape card-a"></div><div class="card-shape card-b"></div>
+      <div class="scene-map-wrap">
+        <div class="scene-map-toolbar">
+          <div><p class="eyebrow">LIVE SCENE SNAPSHOT</p><span id="object-count">Waiting for TTS objects…</span></div>
+          <button id="refresh-objects" class="refresh-button" type="button">Refresh map</button>
         </div>
-        <span class="seat seat-n">NORTH</span><span class="seat seat-e">EAST</span>
-        <span class="seat seat-s">SOUTH</span><span class="seat seat-w">WEST</span>
+        <div id="object-map" class="object-map" aria-label="Top-down map of public tabletop objects">
+          <div class="map-empty">Waiting for the Lua helper to send the first scene snapshot…</div>
+        </div>
+        <div id="object-detail" class="object-detail">Tap an object marker to inspect its public name and position.</div>
       </div>
     </section>
 
@@ -59,9 +58,9 @@
 
     <section class="next-step">
       <span class="next-icon">✦</span>
-      <div><b>Next: touch-to-move</b><p>The next prototype milestone is table-object discovery and a safe Lua-mediated move command. Native physics dragging remains a separate engine-input problem.</p></div>
+      <div><b>Read-only scene map</b><p>Tap a marker to inspect an object. This is a Lua snapshot, not a live 3D renderer; object movement from the touchscreen is the next milestone.</p></div>
     </section>
   </main>
-  <footer>Table Mode is experimental. Open this page on the PC running TTS or another device on the same trusted LAN.</footer>
+  <footer>Table Mode is experimental. Open this page on the PC running TTS or another device on the same trusted LAN. Private hand objects are excluded from the shared map.</footer>
 </body>
 </html>
