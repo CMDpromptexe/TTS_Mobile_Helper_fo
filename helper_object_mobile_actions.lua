@@ -14,7 +14,7 @@
 
 local DEBUG = false
 local SERVER_URL = "http://127.0.0.1:5001"
-local LUA_PROTOCOL = 1
+local LUA_PROTOCOL = 2
 local TRACKED_COLORS = {}
 local helper_instance
 local sync_run
@@ -24,6 +24,7 @@ local heartbeat_pending = false
 local protocol_warning
 local pending_hand_scans = {}
 local pending_table_scan = false
+local pending_object_scan = false
 local streams = {}
 local seen_actions = {}
 
@@ -268,6 +269,7 @@ function onObjectDrop(player_color, object)
         return
     end
     scheduleTableScan_TTSmobile("Objekt gedroppt", 0.5)
+    scheduleObjectScan_TTSmobile("object dropped", 0.5)
     if object and safeObjectTag_TTSmobile(object) == "Card" then
         Wait.time(function()
             local handColor = getColorForCardInHand_TTSmobile(object)
@@ -287,6 +289,7 @@ function onObjectSpawn(object)
         return
     end
     scheduleTableScan_TTSmobile("Objekt gespawnt", 0.5)
+    scheduleObjectScan_TTSmobile("object spawned", 0.5)
 end
 
 function onObjectDestroy(object)
@@ -294,6 +297,7 @@ function onObjectDestroy(object)
         return
     end
     scheduleTableScan_TTSmobile("Objekt geloescht", 0.5)
+    scheduleObjectScan_TTSmobile("object destroyed", 0.5)
 end
 
 function onObjectStateChange(object, old_guid)
@@ -301,6 +305,7 @@ function onObjectStateChange(object, old_guid)
         return
     end
     scheduleTableScan_TTSmobile("Objektzustand geaendert", 0.5)
+    scheduleObjectScan_TTSmobile("object state changed", 0.5)
 end
 
 function onObjectEnterZone(zone, object)
@@ -370,6 +375,8 @@ function handleExternalMessage_TTSmobile(data)
             end
         end
         scheduleTableScan_TTSmobile("request_hand_sync", 0.1, data.force == true)
+    elseif data.action == "table_objects_request" then
+        scheduleObjectScan_TTSmobile("remote refresh", 0.1, true)
     elseif data.action == "table_camera" then
         local presets = {
             overhead = {pitch = 85, yaw = 180, distance = 38},
@@ -456,6 +463,7 @@ function onObjectRotate(object, spin, flip, player_color, old_spin, old_flip)
         local color = getColorForCardInHand_TTSmobile(object)
         scheduleHandScan_TTSmobile(color, "card rotation", 0.25)
     end
+    scheduleObjectScan_TTSmobile("object rotated", 0.5)
 end
 
 function flipCardsFromMobile_TTSmobile(color, cards)
@@ -1499,6 +1507,91 @@ function sendTableMetadata_TTSmobile(force)
     end
 end
 
+function collectTableObjects_TTSmobile()
+    local objects = {}
+    local handGuids = {}
+
+    -- Do not expose cards or other objects in private player hands on the shared map.
+    for _, color in ipairs(TRACKED_COLORS) do
+        for _, handObject in ipairs(getHandObjectsForColor_TTSmobile(color)) do
+            local guid = safeObjectCall_TTSmobile(handObject, "getGUID", nil)
+            if guid then
+                handGuids[guid] = true
+            end
+        end
+    end
+
+    for _, obj in ipairs(safeGetAllObjects_TTSmobile()) do
+        if #objects >= 1500 then
+            break
+        end
+        local guid = safeObjectCall_TTSmobile(obj, "getGUID", nil)
+        if guid and not handGuids[guid] then
+            local position = safeObjectCall_TTSmobile(obj, "getPosition", nil)
+            local rotation = safeObjectCall_TTSmobile(obj, "getRotation", nil)
+            if position and rotation then
+                local kind = safeCall_TTSmobile("object.type", nil, function()
+                    return obj.type
+                end)
+                local tag = safeObjectTag_TTSmobile(obj)
+                kind = tostring(kind or tag or "Object")
+                local faceDown = tag == "Card" and getActualFaceDown_TTSmobile(obj)
+                local name = safeObjectCall_TTSmobile(obj, "getName", "")
+                local label = faceDown and "Face-down card" or (name ~= "" and name or kind)
+                local bounds = safeObjectCall_TTSmobile(obj, "getBounds", nil)
+                local size = bounds and bounds.size or nil
+                local width = size and (size.x or size[1]) or 1
+                local depth = size and (size.z or size[3]) or 1
+                local locked = safeCall_TTSmobile("object.locked", false, function()
+                    return obj.locked == true
+                end)
+                table.insert(objects, {
+                    guid = guid,
+                    label = tostring(label),
+                    kind = kind,
+                    x = position.x or position[1] or 0,
+                    z = position.z or position[3] or 0,
+                    yaw = rotation.y or rotation[2] or 0,
+                    width = width,
+                    depth = depth,
+                    locked = locked == true,
+                })
+            end
+        end
+    end
+    return objects
+end
+
+function scheduleObjectScan_TTSmobile(reason, delay, force)
+    if not snapshot_ready then
+        return
+    end
+    if pending_object_scan then
+        pending_object_scan.force = pending_object_scan.force or force
+        return
+    end
+    local pending = {force = force}
+    pending_object_scan = pending
+    Wait.time(function()
+        pending_object_scan = false
+        if snapshot_ready then
+            local ok, objects = pcall(collectTableObjects_TTSmobile)
+            if ok then
+                local fingerprint = JSON.encode(objects)
+                sendUpdate(
+                    "/table_objects",
+                    "table_objects",
+                    {objects = objects},
+                    fingerprint,
+                    pending.force
+                )
+            else
+                log("Mobile Helper object scan failed: " .. tostring(objects))
+            end
+        end
+    end, delay or 0.5)
+end
+
 function syncSnapshot_TTSmobile()
     if snapshot_pending then
         return
@@ -1528,6 +1621,7 @@ function syncSnapshot_TTSmobile()
             -- Re-read changes that took place while the snapshot was in flight.
             scanAndSendAllHands_TTSmobile("snapshot complete")
             scheduleTableScan_TTSmobile("snapshot complete", 0.1)
+            scheduleObjectScan_TTSmobile("snapshot complete", 0.1, true)
         end
     end)
 end
