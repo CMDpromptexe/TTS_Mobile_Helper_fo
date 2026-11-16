@@ -41,6 +41,8 @@ Open `http://127.0.0.1:5001/table` on the TTS PC, or use the PC's LAN address fr
 
 The map does not yet move objects or provide native multitouch dragging. See [the prototype notes](docs/TABLE_MODE.md) for architecture, verified API behavior, compatibility tests, and next milestones.
 
+The companion's LAN connection is for phones and touchscreen browsers to reach the host PC; it does not add LAN multiplayer to TTS itself. Local hot-seat play remains the game mode for a shared physical table.
+
 ## Troubleshooting
 
 | If you see | Try |
