@@ -263,6 +263,13 @@ function getHandZoneColor_TTSmobile(zone)
     return nil
 end
 
+function onObjectPickUp(player_color, object)
+    if not requirePythonServer_TTSmobile("onObjectPickUp") then
+        return
+    end
+    scheduleObjectScan_TTSmobile("object picked up", 0.2)
+end
+
 function onObjectDrop(player_color, object)
     -- dlog("onObjectDrop: " .. tostring(player_color) .. "," .. tostring(object))
     if not requirePythonServer_TTSmobile("onObjectDrop") then
@@ -306,6 +313,20 @@ function onObjectStateChange(object, old_guid)
     end
     scheduleTableScan_TTSmobile("Objektzustand geaendert", 0.5)
     scheduleObjectScan_TTSmobile("object state changed", 0.5)
+end
+
+function onObjectEnterContainer(container, object)
+    if not requirePythonServer_TTSmobile("onObjectEnterContainer") then
+        return
+    end
+    scheduleObjectScan_TTSmobile("object entered container", 0.5)
+end
+
+function onObjectLeaveContainer(container, object)
+    if not requirePythonServer_TTSmobile("onObjectLeaveContainer") then
+        return
+    end
+    scheduleObjectScan_TTSmobile("object left container", 0.5)
 end
 
 function onObjectEnterZone(zone, object)
@@ -1515,6 +1536,16 @@ function collectTableObjects_TTSmobile()
     for _, color in ipairs(TRACKED_COLORS) do
         for _, handObject in ipairs(getHandObjectsForColor_TTSmobile(color)) do
             local guid = safeObjectCall_TTSmobile(handObject, "getGUID", nil)
+            if guid then
+                handGuids[guid] = true
+            end
+        end
+        local player = safeGetPlayer_TTSmobile(color)
+        local heldObjects = safeCall_TTSmobile("Player.getHoldingObjects " .. tostring(color), {}, function()
+            return player and player.getHoldingObjects() or {}
+        end)
+        for _, heldObject in ipairs(heldObjects) do
+            local guid = safeObjectCall_TTSmobile(heldObject, "getGUID", nil)
             if guid then
                 handGuids[guid] = true
             end
