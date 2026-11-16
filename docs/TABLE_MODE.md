@@ -69,14 +69,15 @@ For each, verify initial snapshot, object spawn/drop/rotate/destroy refresh, no 
 ## Current limitations and next milestones
 
 1. **Current:** read-only host-level object map and camera presets. It omits hand/held objects and masks face-down card names, but does not respect Fog of War, hidden zones, or custom invisibility rules. Do not use the map for hidden-information games yet. Object updates are event-driven, not frame-by-frame; physics-driven movement between tracked events can leave it temporarily stale.
-2. **Next:** add a tap-to-select command path and one-object move/rotate controls with strict server-side allowlisting, stale-position checks, and explicit Lua result acknowledgements.
-3. Add table bounds and center detection to make camera framing adapt to different Workshop tables.
-4. Evaluate native multitouch and physics dragging separately; Lua transforms are not equivalent to native TTS grabbing.
-5. Test compatibility against a representative set of real Workshop games before adding more controls.
+2. **Next:** design a real per-player visibility strategy or a fail-closed mode for hidden-information games before enabling movement. The current checkbox is only a host acknowledgement, not visibility enforcement.
+3. Add a tap-to-select command path and one-object move/rotate controls with strict server-side allowlisting, stale-position checks, and explicit Lua result acknowledgements.
+4. Add table bounds and center detection to make camera framing adapt to different Workshop tables.
+5. Evaluate native multitouch and physics dragging separately; Lua transforms are not equivalent to native TTS grabbing.
+6. Test compatibility against a representative set of real Workshop games before adding more controls.
 
 ## Visibility limitation
 
-The object map is not yet safe for hidden-information games. TTS exposes object hiding and Fog of War configuration, but the reviewed public API does not provide a general per-player visibility query for arbitrary custom hiders. The map is therefore a host-level inventory of scene objects, not a faithful projection of what each player is allowed to see. Keep it off the shared display when a Workshop game relies on Fog of War, hidden zones, or custom `setHiddenFrom`/`setInvisibleTo` behavior.
+The object map is not yet safe for hidden-information games. TTS exposes object hiding and Fog of War configuration, but the reviewed public API does not provide a general per-player visibility query for arbitrary custom hiders. The map is therefore a host-level inventory of scene objects, not a faithful projection of what each player is allowed to see. The UI hides it until the host explicitly acknowledges that the game has no hidden-information rules; this is an accidental-disclosure guard, not a technical visibility filter. Keep it off the shared display when a Workshop game relies on Fog of War, hidden zones, or custom `setHiddenFrom`/`setInvisibleTo` behavior.
 
 ## Security note
 
