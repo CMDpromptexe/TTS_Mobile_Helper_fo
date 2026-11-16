@@ -23,16 +23,17 @@
       <div class="stage-copy">
         <span class="stage-kicker">SHARED TABLE</span>
         <h2>Put the table in view.</h2>
-        <p>The map shows public tabletop objects reported by the Lua helper. Camera presets move one selected TTS player's view.</p>
+        <p>The map is a host-level scene snapshot reported by the Lua helper. Camera presets move one selected TTS player's view.</p>
       </div>
       <div class="scene-map-wrap">
         <div class="scene-map-toolbar">
           <div><p class="eyebrow">LIVE SCENE SNAPSHOT</p><span id="object-count">Waiting for TTS objects…</span></div>
           <button id="refresh-objects" class="refresh-button" type="button">Refresh map</button>
         </div>
-        <div id="object-map" class="object-map" aria-label="Top-down map of public tabletop objects">
+        <div id="object-map" class="object-map" aria-label="Top-down map of tabletop scene objects">
           <div class="map-empty">Waiting for the Lua helper to send the first scene snapshot…</div>
         </div>
+        <p class="map-warning">Host-level view only: Fog of War, hidden zones, and custom per-player object hiding are not filtered yet. Do not display this map during hidden-information games.</p>
         <div id="object-detail" class="object-detail">Tap an object marker to inspect its public name and position.</div>
       </div>
     </section>
@@ -61,6 +62,6 @@
       <div><b>Read-only scene map</b><p>Tap a marker to inspect an object. This is a Lua snapshot, not a live 3D renderer; object movement from the touchscreen is the next milestone.</p></div>
     </section>
   </main>
-  <footer>Table Mode is experimental. Open this page on the PC running TTS or another device on the same trusted LAN. Private hand objects are excluded from the shared map.</footer>
+  <footer>Table Mode is experimental. Open this page on the PC running TTS or another device on the same trusted LAN. Private hand and currently held objects are excluded; Fog of War and custom hidden-object rules are not yet respected.</footer>
 </body>
 </html>
