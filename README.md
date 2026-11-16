@@ -29,6 +29,20 @@ python -m pip install -r requirements.txt
 python server_mobile_actions.py
 ```
 
+## Experimental Table Mode
+
+Open `http://127.0.0.1:5001/table` on the TTS PC, or use the PC's LAN address from a touchscreen on the same trusted network. Table Mode currently provides a separate shared-screen camera control page with overhead and four-sided camera presets. It requires the matching Lua helper script from this checkout.
+
+The camera controls currently center on the world origin. Table Mode does not yet provide touch-to-select, touch-to-move, or native multitouch object dragging. See [the prototype notes](docs/TABLE_MODE.md) for current scope and planned milestones.
+
+## Experimental Table Mode
+
+Open `http://127.0.0.1:5001/table` on the TTS PC, or use the PC's LAN address from a touchscreen on the same trusted network. Table Mode currently includes a native TopDown camera preset, four angled camera presets, and a read-only host-level map of tabletop objects. It excludes objects in player hands and masks face-down card names, but it does not yet respect Fog of War, hidden zones, or custom object-hiding rules. The map is hidden by default until the host confirms the game has no hidden-information rules; that confirmation is only a reminder, not a technical visibility filter. Do not use the map for hidden-information games yet. It requires the matching protocol-v2 Lua helper and Python server from this checkout. Some older protocol-less helpers may still sync hands but will not publish the scene map.
+
+The map does not yet move objects or provide native multitouch dragging. See [the prototype notes](docs/TABLE_MODE.md) for architecture, verified API behavior, compatibility tests, and next milestones.
+
+The companion's LAN connection is for phones and touchscreen browsers to reach the host PC; it does not add LAN multiplayer to TTS itself. Local hot-seat play remains the game mode for a shared physical table.
+
 ## Troubleshooting
 
 | If you see | Try |

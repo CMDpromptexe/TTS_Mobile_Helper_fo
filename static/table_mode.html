@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#10151d">
+  <title>TTS Table Mode</title>
+  <link rel="stylesheet" href="/static/table_mode.css">
+  <script src="/socket.io.js"></script>
+  <script defer src="/static/table_mode.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">TABLETOP SIMULATOR · EXPERIMENTAL</p>
+      <h1>Table Mode</h1>
+    </div>
+    <div id="connection" class="connection" data-state="connecting"><span></span><b>Connecting</b></div>
+  </header>
+
+  <main>
+    <section class="stage" aria-label="Table camera controls">
+      <div class="stage-copy">
+        <span class="stage-kicker">SHARED TABLE</span>
+        <h2>Put the table in view.</h2>
+        <p>The map is a host-level scene snapshot reported by the Lua helper. Camera presets move one selected TTS player's view.</p>
+      </div>
+      <div class="scene-map-wrap">
+        <label class="visibility-confirm">
+          <input id="map-visibility-confirm" type="checkbox">
+          <span>I confirm this table has no Fog of War, hidden zones, or custom object-hiding rules. Show the scene map.</span>
+        </label>
+        <p class="map-warning">This map can reveal hidden object locations. Keep it disabled for games using Fog of War, hidden zones, or custom per-player hiding.</p>
+        <div id="scene-map-content" hidden>
+          <div class="scene-map-toolbar">
+            <div><p class="eyebrow">SCENE SNAPSHOT</p><span id="object-count">Waiting for TTS objects…</span></div>
+            <button id="refresh-objects" class="refresh-button" type="button">Refresh map</button>
+          </div>
+          <div id="object-map" class="object-map" aria-label="Top-down map of tabletop scene objects">
+            <div class="map-empty">Waiting for the Lua helper to send the first scene snapshot…</div>
+          </div>
+          <p class="map-warning">Host-level view only: Fog of War, hidden zones, and custom per-player object hiding are not filtered. This confirmation is a reminder, not a visibility filter.</p>
+          <div id="object-detail" class="object-detail">Tap an object marker to inspect its public name and position.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="controls">
+      <div class="section-heading">
+        <div><p class="eyebrow">CAMERA TARGET</p><h2>Choose the TTS view</h2></div>
+        <select id="target-color" aria-label="TTS player color">
+          <option>White</option><option>Brown</option><option>Red</option><option>Orange</option>
+          <option>Yellow</option><option>Green</option><option>Teal</option><option>Blue</option>
+          <option>Purple</option><option>Pink</option>
+        </select>
+      </div>
+      <div class="camera-grid">
+        <button class="camera-button overhead" data-preset="overhead"><span class="camera-icon">◎</span><b>TopDown</b><small>Use TTS TopDown mode</small></button>
+        <button class="camera-button" data-preset="north"><span class="camera-icon">↑</span><b>North</b><small>View from north</small></button>
+        <button class="camera-button" data-preset="east"><span class="camera-icon">→</span><b>East</b><small>View from east</small></button>
+        <button class="camera-button" data-preset="south"><span class="camera-icon">↓</span><b>South</b><small>View from south</small></button>
+        <button class="camera-button" data-preset="west"><span class="camera-icon">←</span><b>West</b><small>View from west</small></button>
+      </div>
+      <div id="feedback" class="feedback" role="status">Waiting for the TTS helper to connect…</div>
+    </section>
+
+    <section class="next-step">
+      <span class="next-icon">✦</span>
+      <div><b>Read-only scene map</b><p>Tap a marker to inspect an object. This is a Lua snapshot, not a live 3D renderer; object movement from the touchscreen is the next milestone.</p></div>
+    </section>
+  </main>
+  <footer>Table Mode is experimental. Open this page on the PC running TTS or another device on the same trusted LAN. Private hand and currently held objects are excluded; Fog of War and custom hidden-object rules are not yet respected.</footer>
+</body>
+</html>

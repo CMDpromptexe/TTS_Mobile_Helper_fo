@@ -303,8 +303,9 @@ drop_zones = []
 mobile_buttons = []
 hand_zone_colors = []
 seated_colors = []
+table_objects = []
 STATE_LOCK = threading.RLock()
-LUA_PROTOCOL = 1
+LUA_PROTOCOL = 2
 LUA_TIMEOUT_SECONDS = 10
 ACTION_TIMEOUT_SECONDS = 10
 last_lua_contact_at = None
@@ -352,8 +353,17 @@ def emit_lua_status():
     socketio.emit("lua_status", lua_connection_status())
 
 
+def emit_table_objects_to_admins():
+    payload = {"objects": table_objects}
+    for sid, session in list(client_sessions.items()):
+        if session.get("is_admin"):
+            socketio.emit("table_objects_update", payload, to=sid)
+
+
 def begin_sync():
-    global sync_run, table_ready
+    global sync_run, table_ready, table_objects
+    table_objects = []
+    emit_table_objects_to_admins()
     sync_run = uuid.uuid4().hex
     table_ready = False
     update_sequences.clear()
@@ -387,6 +397,49 @@ def lua_array(value):
 
 def valid_color(color):
     return isinstance(color, str) and color in (*TTS_COLORS, "Black")
+
+
+def read_table_objects(value):
+    objects = lua_array(value)
+    if len(objects) > 1500:
+        raise ValueError("too many table objects")
+    result = []
+    seen = set()
+    for item in objects:
+        if not isinstance(item, dict):
+            raise ValueError("invalid table object")
+        guid = item.get("guid")
+        if not is_valid_tts_guid(guid) or guid in seen:
+            raise ValueError("invalid or duplicate table object GUID")
+        seen.add(guid)
+        label = item.get("label")
+        kind = item.get("kind")
+        if not isinstance(label, str) or not label or len(label) > 100:
+            raise ValueError("invalid table object label")
+        if not isinstance(kind, str) or not kind or len(kind) > 48:
+            raise ValueError("invalid table object type")
+        for field in ("x", "z", "yaw", "width", "depth"):
+            number = item.get(field)
+            if type(number) not in (int, float) or not math.isfinite(number):
+                raise ValueError(f"invalid table object {field}")
+            if abs(number) > 100000:
+                raise ValueError(f"table object {field} out of range")
+        if item["width"] < 0 or item["depth"] < 0:
+            raise ValueError("invalid table object bounds")
+        if type(item.get("locked")) is not bool:
+            raise ValueError("invalid table object lock state")
+        result.append({
+            "guid": guid,
+            "label": label,
+            "kind": kind,
+            "x": float(item["x"]),
+            "z": float(item["z"]),
+            "yaw": float(item["yaw"]),
+            "width": float(item["width"]),
+            "depth": float(item["depth"]),
+            "locked": item["locked"],
+        })
+    return result
 
 
 def valid_drop_zone(zone):
@@ -682,6 +735,12 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/table")
+def table_mode_page():
+    """Serve the experimental shared-table camera control surface."""
+    return send_from_directory(str(resource_file_path("static")), "table_mode.html")
+
+
 def protocol_mismatch(received):
     older_helper = received < LUA_PROTOCOL
     direction = "lua_helper" if older_helper else "windows_server"
@@ -842,6 +901,25 @@ def sync_snapshot():
     return {"status": "ok"}
 
 
+@app.post("/table_objects")
+def update_table_objects():
+    global table_objects
+    data, error = lua_input()
+    if error:
+        return error
+    try:
+        objects = read_table_objects(data["objects"])
+    except (KeyError, ValueError, OverflowError) as exc:
+        return {"status": "error", "message": str(exc)}, 400
+    with STATE_LOCK:
+        error = accept_update(data, "table_objects")
+        if error:
+            return error
+        table_objects = objects
+        emit_table_objects_to_admins()
+    return {"status": "ok", "count": len(objects)}
+
+
 @app.post("/update_hand")
 def update_hand():
     data, error = lua_input()
@@ -935,7 +1013,106 @@ def on_join(data):
             color_owners[color] = client_id
         join_room(color)
         emit("join_success", {"color": color})
+        if is_admin:
+            emit("table_objects_update", {"objects": table_objects})
         emit_occupancy_to_all_clients()
+
+
+
+@socketio.on("table_camera")
+def on_table_camera(data):
+    data = data if isinstance(data, dict) else {}
+    target_color = data.get("target_color")
+    preset = data.get("preset")
+    sid = request.sid
+
+    with STATE_LOCK:
+        session = client_sessions.get(sid)
+        if not session or not session.get("is_admin"):
+            emit("table_camera_result", {
+                "ok": False,
+                "message": "Table Mode camera controls require an admin session.",
+            })
+            return
+        if not table_ready:
+            emit("table_camera_result", {
+                "ok": False,
+                "message": "Waiting for the TTS helper to finish syncing.",
+            })
+            return
+        if target_color not in game_state:
+            emit("table_camera_result", {
+                "ok": False,
+                "message": "Choose a valid TTS player color.",
+            })
+            return
+        if preset not in {"overhead", "north", "east", "south", "west"}:
+            emit("table_camera_result", {
+                "ok": False,
+                "message": "Unknown camera preset.",
+            })
+            return
+        message = {
+            "action": "table_camera",
+            "helper": helper_instance,
+            "run": sync_run,
+            "target_color": target_color,
+            "preset": preset,
+        }
+
+    try:
+        get_tts_api_chatgpt().custom_message(message)
+    except Exception as exc:
+        print(f"[TTS] Table Mode camera command failed: {exc}")
+        emit("table_camera_result", {
+            "ok": False,
+            "message": "Could not send the camera command to TTS.",
+        })
+        return
+
+    emit("table_camera_result", {
+        "ok": True,
+        "message": f"Camera command sent for {target_color}.",
+        "target_color": target_color,
+        "preset": preset,
+    })
+
+
+@socketio.on("table_request_objects")
+def on_table_request_objects():
+    sid = request.sid
+    with STATE_LOCK:
+        session = client_sessions.get(sid)
+        if not session or not session.get("is_admin"):
+            emit("table_objects_request_result", {
+                "ok": False,
+                "message": "Table Mode object refresh requires an admin session.",
+            })
+            return
+        if not table_ready:
+            emit("table_objects_request_result", {
+                "ok": False,
+                "message": "Waiting for the TTS helper to finish syncing.",
+            })
+            return
+        message = {
+            "action": "table_objects_request",
+            "helper": helper_instance,
+            "run": sync_run,
+        }
+    try:
+        get_tts_api_chatgpt().custom_message(message)
+    except Exception as exc:
+        print(f"[TTS] Table Mode object refresh failed: {exc}")
+        emit("table_objects_request_result", {
+            "ok": False,
+            "message": "Could not request an object snapshot from TTS.",
+        })
+        return
+    emit("table_objects_request_result", {
+        "ok": True,
+        "message": "Object refresh requested from TTS.",
+    })
 
 
 def release_color(session):

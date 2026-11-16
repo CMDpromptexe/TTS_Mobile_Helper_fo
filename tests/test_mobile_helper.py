@@ -67,6 +67,129 @@ class MobileHelperTest(unittest.TestCase):
     def events(self, phone, name):
         return [event["args"][0] for event in phone.get_received() if event["name"] == name]
 
+    def test_table_camera_requires_admin_and_dispatches_valid_preset(self):
+        self.handshake()
+        self.assertEqual(self.snapshot().status_code, 200)
+
+        admin = self.phone("Red", "table-mode-admin")
+        admin.emit("join", {
+            "color": "Red",
+            "client_id": "table-mode-admin",
+            "is_admin": True,
+        })
+        self.assertTrue(self.events(admin, "join_success"))
+
+        admin.emit("table_camera", {
+            "target_color": "White",
+            "preset": "overhead",
+        })
+        result = self.events(admin, "table_camera_result")
+        self.assertEqual(result[-1]["ok"], True)
+        self.assertEqual(self.sent[-1], {
+            "action": "table_camera",
+            "helper": self.helper,
+            "run": self.run,
+            "target_color": "White",
+            "preset": "overhead",
+        })
+
+    def test_table_camera_rejects_non_admin_and_unknown_presets(self):
+        self.handshake()
+        self.assertEqual(self.snapshot().status_code, 200)
+
+        player = self.phone("Red", "regular-player")
+        player.emit("table_camera", {
+            "target_color": "White",
+            "preset": "overhead",
+        })
+        result = self.events(player, "table_camera_result")
+        self.assertFalse(result[-1]["ok"])
+        self.assertEqual(self.sent, [])
+
+        admin = self.phone("Blue", "table-mode-admin")
+        admin.emit("join", {
+            "color": "Blue",
+            "client_id": "table-mode-admin",
+            "is_admin": True,
+        })
+        self.assertTrue(self.events(admin, "join_success"))
+        admin.emit("table_camera", {
+            "target_color": "White",
+            "preset": "execute arbitrary lua",
+        })
+        result = self.events(admin, "table_camera_result")
+        self.assertFalse(result[-1]["ok"])
+        self.assertEqual(self.sent, [])
+
+    def test_table_mode_page_is_served(self):
+        response = self.http.get("/table")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Table Mode", response.data)
+        self.assertIn(b"table_mode.js", response.data)
+        response.close()
+
+    def test_table_objects_are_validated_and_sent_only_to_admin_sessions(self):
+        self.handshake()
+        self.assertEqual(self.snapshot().status_code, 200)
+
+        admin = self.server.socketio.test_client(self.server.app)
+        self.clients.append(admin)
+        admin.emit("join", {
+            "color": "White",
+            "client_id": "table-admin",
+            "is_admin": True,
+        })
+        self.assertTrue(self.events(admin, "join_success"))
+
+        player = self.phone("Red", "private-player")
+        objects = [{
+            "guid": "abcdef",
+            "label": "Wooden token",
+            "kind": "Custom_Token",
+            "x": 2.5,
+            "z": -4,
+            "yaw": 90,
+            "width": 1,
+            "depth": 1,
+            "locked": False,
+        }]
+        response = self.post("/table_objects", sequence=1, objects=objects)
+        self.assertEqual(response.status_code, 200, response.json)
+        updates = self.events(admin, "table_objects_update")
+        self.assertEqual(updates[-1]["objects"][0]["guid"], "abcdef")
+        self.assertFalse(self.events(player, "table_objects_update"))
+
+        invalid = [{**objects[0], "x": 100001}]
+        response = self.post("/table_objects", sequence=2, objects=invalid)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.server.table_objects, objects)
+
+    def test_table_object_refresh_is_admin_only(self):
+        self.handshake()
+        self.assertEqual(self.snapshot().status_code, 200)
+        player = self.phone("Red", "regular-player")
+        player.emit("table_request_objects")
+        result = self.events(player, "table_objects_request_result")
+        self.assertFalse(result[-1]["ok"])
+        self.assertEqual(self.sent, [])
+
+        admin = self.server.socketio.test_client(self.server.app)
+        self.clients.append(admin)
+        admin.emit("join", {
+            "color": "White",
+            "client_id": "table-admin",
+            "is_admin": True,
+        })
+        self.assertTrue(self.events(admin, "join_success"))
+        admin.emit("table_request_objects")
+        result = self.events(admin, "table_objects_request_result")
+        self.assertTrue(result[-1]["ok"])
+        self.assertEqual(self.sent[-1], {
+            "action": "table_objects_request",
+            "helper": self.helper,
+            "run": self.run,
+        })
+
     def test_health_readiness_expiry_and_new_run(self):
         phone = self.phone("Red")
         self.assertEqual(self.http.get("/health").status_code, 200)
@@ -115,14 +238,14 @@ class MobileHelperTest(unittest.TestCase):
 
     def test_heartbeat_reports_protocol_and_identifies_an_older_server(self):
         with patch("builtins.print") as console:
-            response = self.http.post("/health", json={"helper": self.helper, "protocol": 2})
+            response = self.http.post("/health", json={"helper": self.helper, "protocol": 3})
             self.assertEqual(response.status_code, 409)
-            self.assertEqual(response.json["protocol"], 1)
+            self.assertEqual(response.json["protocol"], 2)
             self.assertIn("Windows server is older", response.json["message"])
             console.assert_called_once()
         self.assertFalse(self.server.lua_connection_status()["connected"])
-        self.assertEqual(self.handshake()["protocol"], 1)
-        response = self.http.post("/health", json={"helper": self.helper, "protocol": 1})
+        self.assertEqual(self.handshake()["protocol"], 2)
+        response = self.http.post("/health", json={"helper": self.helper, "protocol": 2})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json["run"], self.run)
 
