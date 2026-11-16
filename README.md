@@ -35,6 +35,12 @@ Open `http://127.0.0.1:5001/table` on the TTS PC, or use the PC's LAN address fr
 
 The camera controls currently center on the world origin. Table Mode does not yet provide touch-to-select, touch-to-move, or native multitouch object dragging. See [the prototype notes](docs/TABLE_MODE.md) for current scope and planned milestones.
 
+## Experimental Table Mode
+
+Open `http://127.0.0.1:5001/table` on the TTS PC, or use the PC's LAN address from a touchscreen on the same trusted network. Table Mode currently includes camera presets and a read-only map of public tabletop objects. It excludes objects in player hands and masks face-down card names. It requires the matching protocol-v2 Lua helper and Python server from this checkout.
+
+The map does not yet move objects or provide native multitouch dragging. See [the prototype notes](docs/TABLE_MODE.md) for architecture, verified API behavior, compatibility tests, and next milestones.
+
 ## Troubleshooting
 
 | If you see | Try |
