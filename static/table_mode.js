@@ -49,12 +49,12 @@
 
   function renderObjects(objects) {
     currentObjects = Array.isArray(objects) ? objects : [];
-    objectCount.textContent = `${currentObjects.length} public objects · updated from TTS`;
+    objectCount.textContent = `${currentObjects.length} scene objects · updated from TTS`;
     objectMap.replaceChildren();
     if (!currentObjects.length) {
       const empty = document.createElement('div');
       empty.className = 'map-empty';
-      empty.textContent = 'No public tabletop objects were reported. Private hand objects are intentionally omitted.';
+      empty.textContent = 'No scene objects were reported. Private hand and currently held objects are intentionally omitted.';
       objectMap.append(empty);
       objectDetail.textContent = 'No object selected.';
       return;
