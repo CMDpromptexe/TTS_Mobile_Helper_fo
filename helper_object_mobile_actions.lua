@@ -1576,6 +1576,13 @@ function collectTableObjects_TTSmobile()
                 local faceDown = tag == "Card" and getActualFaceDown_TTSmobile(obj)
                 local name = safeObjectCall_TTSmobile(obj, "getName", "")
                 local label = faceDown and "Face-down card" or (name ~= "" and name or kind)
+                label = tostring(label)
+                if #label > 100 then
+                    label = string.sub(label, 1, 97) .. "..."
+                end
+                if #kind > 48 then
+                    kind = string.sub(kind, 1, 48)
+                end
                 local bounds = safeObjectCall_TTSmobile(obj, "getBounds", nil)
                 local size = bounds and bounds.size or nil
                 local width = size and (size.x or size[1]) or 1
