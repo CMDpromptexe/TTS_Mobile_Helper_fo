@@ -39,7 +39,7 @@ The four angled camera presets currently center on world origin. The TopDown pre
 - TTS's Lua implementation is based on Lua 5.2. CI runs `luac5.2 -p` against the helper for syntax validation; this does not execute TTS API calls or prove runtime compatibility.
 - `getAllObjects()` returns the game's objects except hand zones; `getObjects()` includes hand zones.
 - Object APIs expose world position, rotation, and bounds suitable for a 2D scene projection. Player APIs expose both hand objects and objects currently being held, allowing the helper to omit them from the shared map.
-- The official TTS knowledge base lists touchscreen optimization and local hot-seat multiplayer. That does not establish that the current client exposes a general multitouch API to Lua.
+- Current official v14.2 patch notes (October 2, 2026) document the Unity 6.3 engine update and hotseat overhaul, but do not describe a new general multitouch or raw touch-event API. The scripting API exposes pointer state and object transforms, not a general multi-contact input surface. This is an API-surface finding, not proof that every device's OS-level touch emulation fails.
 
 ## What does not require a TTS engine modification
 
@@ -70,11 +70,11 @@ For each, verify initial snapshot, object spawn/drop/rotate/destroy refresh, no 
 ## Current limitations and next milestones
 
 1. **Current:** read-only host-level object map and camera presets. It omits hand/held objects and masks face-down card names, but does not respect Fog of War, hidden zones, or custom invisibility rules. Do not use the map for hidden-information games yet. Object updates are event-driven, not frame-by-frame; physics-driven movement between tracked events can leave it temporarily stale.
-2. **Next:** design a real per-player visibility strategy or a fail-closed mode for hidden-information games before enabling movement. The current checkbox is only a host acknowledgement, not visibility enforcement.
-3. Add a tap-to-select command path and one-object move/rotate controls with strict server-side allowlisting, stale-position checks, and explicit Lua result acknowledgements.
-4. Add table bounds and center detection to make camera framing adapt to different Workshop tables.
+2. **Next:** add one-object move/rotate controls for explicitly enabled public-information tables. Require the authorized host session, a current snapshot, an unlocked non-card/non-container/non-zone object, stale-position checks in both Python and Lua, and an explicit Lua result acknowledgement.
+3. Add table bounds and center detection to make camera framing adapt to different Workshop tables.
+4. Design a per-player visibility strategy before ever treating the map as safe for hidden-information games; the current host acknowledgement is not a visibility filter.
 5. Evaluate native multitouch and physics dragging separately; Lua transforms are not equivalent to native TTS grabbing.
-6. Test compatibility against a representative set of real Workshop games before adding more controls.
+6. Test compatibility against a representative set of unmodified Workshop games before adding more controls.
 
 ## Visibility limitation
 
@@ -85,3 +85,15 @@ The object map is not yet safe for hidden-information games. TTS exposes object 
 Table Mode has a separate random per-process token distributed through the startup QR code. The browser exchanges it for an HttpOnly, SameSite=Strict cookie; the token is not embedded in the Table Mode JavaScript, and Table Mode socket events require both the cookie-authorized session and the admin flag. The scene-map enable/disable decision is enforced by the server and resets when the helper syncs a new TTS session.
 
 This is a lightweight shared-secret gate for a trusted LAN, not full user authentication: the initial link is delivered over local HTTP, so someone able to observe the LAN traffic could capture it. The original mobile admin interface retains its existing client-declared admin behavior. Do not expose port 5001 to an untrusted network or the public internet.
+
+## References
+
+- [TTS External Editor API](https://api.tabletopsimulator.com/externaleditorapi/) — localhost TCP messaging and custom messages forwarded to `onExternalMessage(data)`.
+- [TTS Events API](https://api.tabletopsimulator.com/events/) — `onExternalMessage` and object lifecycle events.
+- [TTS Base API](https://api.tabletopsimulator.com/base/) — `getAllObjects()`, `getObjects()`, and `getObjectFromGUID()`.
+- [TTS Object API](https://api.tabletopsimulator.com/object/) — object transforms, bounds, lock state, zones, and object hiding methods.
+- [TTS Player Instance API](https://api.tabletopsimulator.com/player/instance/) — hand objects, held objects, pointer state, `setCameraMode()`, and `lookAt()`.
+- [TTS v14.2 patch notes](https://tabletopsimulator.com/news/patch-notes) — October 2, 2026 engine and hotseat update.
+- [Touchscreen interface request #2172](https://tabletopsimulator.nolt.io/2172) — requested pinch zoom, two-finger rotation, tap context menus, and long-press dragging.
+- [Archived single-touch/offset report #2784](https://tabletopsimulator.nolt.io/2784) — user-reported single-touch limitation and pointer offset; not a definitive test of current builds.
+- [TouchOSC camera-controller experiment](https://www.reddit.com/r/tabletopsimulator/comments/h80jwb/) — external touch controls mapped through TouchOSC Bridge and OSCulator to TTS camera keybinds.
