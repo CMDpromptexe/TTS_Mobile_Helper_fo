@@ -61,6 +61,23 @@ class MobileHelperTest(unittest.TestCase):
             self.assertTrue(self.events(phone, "join_success"))
         return phone
 
+    def table_admin(self, color="White", identity="table-admin"):
+        grant = self.http.get(f"/table?key={self.server.TABLE_MODE_TOKEN}")
+        self.assertEqual(grant.status_code, 303)
+        self.assertEqual(grant.headers.get("Location"), "/table")
+        page = self.http.get("/table")
+        self.assertEqual(page.status_code, 200)
+        admin = self.server.socketio.test_client(self.server.app, flask_test_client=self.http)
+        self.clients.append(admin)
+        admin.emit("join", {
+            "color": color,
+            "client_id": identity,
+            "is_admin": True,
+            "is_table_mode": True,
+        })
+        self.assertTrue(self.events(admin, "join_success"))
+        return admin
+
     def join(self, phone, color, identity):
         phone.emit("join", {"color": color, "client_id": identity})
 
@@ -71,13 +88,7 @@ class MobileHelperTest(unittest.TestCase):
         self.handshake()
         self.assertEqual(self.snapshot().status_code, 200)
 
-        admin = self.phone("Red", "table-mode-admin")
-        admin.emit("join", {
-            "color": "Red",
-            "client_id": "table-mode-admin",
-            "is_admin": True,
-        })
-        self.assertTrue(self.events(admin, "join_success"))
+        admin = self.table_admin("Red", "table-mode-admin")
 
         admin.emit("table_camera", {
             "target_color": "White",
@@ -106,13 +117,7 @@ class MobileHelperTest(unittest.TestCase):
         self.assertFalse(result[-1]["ok"])
         self.assertEqual(self.sent, [])
 
-        admin = self.phone("Blue", "table-mode-admin")
-        admin.emit("join", {
-            "color": "Blue",
-            "client_id": "table-mode-admin",
-            "is_admin": True,
-        })
-        self.assertTrue(self.events(admin, "join_success"))
+        admin = self.table_admin("Blue", "table-mode-admin")
         admin.emit("table_camera", {
             "target_color": "White",
             "preset": "execute arbitrary lua",
@@ -121,25 +126,48 @@ class MobileHelperTest(unittest.TestCase):
         self.assertFalse(result[-1]["ok"])
         self.assertEqual(self.sent, [])
 
-    def test_table_mode_page_is_served(self):
+    def test_table_mode_page_requires_host_token_and_sets_http_only_cookie(self):
+        self.assertEqual(self.http.get("/table").status_code, 403)
+        self.assertEqual(self.http.get("/table?key=wrong").status_code, 403)
+
+        grant = self.http.get(f"/table?key={self.server.TABLE_MODE_TOKEN}")
+        self.assertEqual(grant.status_code, 303)
+        cookie = self.http.get_cookie(self.server.TABLE_MODE_COOKIE)
+        self.assertIsNotNone(cookie)
+        self.assertTrue(cookie.http_only)
+        self.assertEqual(cookie.same_site, "Strict")
+
         response = self.http.get("/table")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Table Mode", response.data)
         self.assertIn(b"table_mode.js", response.data)
         response.close()
 
+    def test_client_declared_admin_flag_does_not_authorize_table_mode(self):
+        self.handshake()
+        self.assertEqual(self.snapshot().status_code, 200)
+        client = self.server.socketio.test_client(self.server.app)
+        self.clients.append(client)
+        client.emit("join", {
+            "color": "White",
+            "client_id": "spoofed-admin",
+            "is_admin": True,
+            "is_table_mode": True,
+        })
+        self.assertTrue(self.events(client, "join_success"))
+        self.assertFalse(self.events(client, "table_objects_update"))
+
+        client.emit("table_camera", {"target_color": "White", "preset": "overhead"})
+        self.assertFalse(self.events(client, "table_camera_result")[-1]["ok"])
+        client.emit("table_map_visibility", {"enabled": True})
+        self.assertFalse(self.events(client, "table_map_visibility_result")[-1]["ok"])
+        self.assertEqual(self.sent, [])
+
     def test_table_objects_are_validated_and_sent_only_to_admin_sessions(self):
         self.handshake()
         self.assertEqual(self.snapshot().status_code, 200)
 
-        admin = self.server.socketio.test_client(self.server.app)
-        self.clients.append(admin)
-        admin.emit("join", {
-            "color": "White",
-            "client_id": "table-admin",
-            "is_admin": True,
-        })
-        self.assertTrue(self.events(admin, "join_success"))
+        admin = self.table_admin()
 
         player = self.phone("Red", "private-player")
         objects = [{
@@ -156,8 +184,20 @@ class MobileHelperTest(unittest.TestCase):
         response = self.post("/table_objects", sequence=1, objects=objects)
         self.assertEqual(response.status_code, 200, response.json)
         updates = self.events(admin, "table_objects_update")
-        self.assertEqual(updates[-1]["objects"][0]["guid"], "abcdef")
+        self.assertTrue(updates)
+        self.assertEqual(updates[-1], {"objects": [], "enabled": False})
         self.assertFalse(self.events(player, "table_objects_update"))
+
+        admin.emit("table_map_visibility", {"enabled": True})
+        self.assertTrue(self.events(admin, "table_map_visibility_result")[-1]["ok"])
+        updates = self.events(admin, "table_objects_update")
+        self.assertEqual(updates[-1]["objects"][0]["guid"], "abcdef")
+        self.assertTrue(updates[-1]["enabled"])
+
+        admin.emit("table_map_visibility", {"enabled": False})
+        self.assertTrue(self.events(admin, "table_map_visibility_result")[-1]["ok"])
+        updates = self.events(admin, "table_objects_update")
+        self.assertEqual(updates[-1], {"objects": [], "enabled": False})
 
         invalid = [{**objects[0], "x": 100001}]
         response = self.post("/table_objects", sequence=2, objects=invalid)
@@ -173,14 +213,14 @@ class MobileHelperTest(unittest.TestCase):
         self.assertFalse(result[-1]["ok"])
         self.assertEqual(self.sent, [])
 
-        admin = self.server.socketio.test_client(self.server.app)
-        self.clients.append(admin)
-        admin.emit("join", {
-            "color": "White",
-            "client_id": "table-admin",
-            "is_admin": True,
-        })
-        self.assertTrue(self.events(admin, "join_success"))
+        admin = self.table_admin()
+        admin.emit("table_request_objects")
+        result = self.events(admin, "table_objects_request_result")
+        self.assertFalse(result[-1]["ok"])
+        self.assertEqual(self.sent, [])
+
+        admin.emit("table_map_visibility", {"enabled": True})
+        self.assertTrue(self.events(admin, "table_map_visibility_result")[-1]["ok"])
         admin.emit("table_request_objects")
         result = self.events(admin, "table_objects_request_result")
         self.assertTrue(result[-1]["ok"])
