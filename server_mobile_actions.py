@@ -1041,6 +1041,11 @@ def on_join(data):
             and data.get("is_table_mode") is True
             and hmac.compare_digest(table_cookie, TABLE_MODE_TOKEN)
         )
+        if data.get("is_table_mode") is True and not is_table_admin:
+            emit("join_error", {
+                "error": "Table Mode access is missing or expired. Scan the host's Table Mode QR code again.",
+            })
+            return
         previous = client_sessions.get(sid)
         client_sessions[sid] = {
             "client_id": client_id,
