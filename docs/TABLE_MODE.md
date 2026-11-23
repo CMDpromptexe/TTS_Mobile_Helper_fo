@@ -14,11 +14,11 @@ Table Mode is an experimental touchscreen-first control surface served by the ex
 
 ## Run
 
-1. Use the matching Python companion server and `helper_object_mobile_actions.lua` from this branch. The helper protocol is now version 2. Protocol-aware older builds report a version mismatch; older protocol-less builds may continue syncing existing hand features but will not publish the new scene-object stream.
-2. Start TTS and load the Mobile Helper Lua object into the active table using Additive Load, or paste the matching script into a scripted helper object.
+1. Use the matching Python companion server and `helper_object_mobile_actions.lua` from this branch. The helper protocol is version 2. Protocol-aware older builds report a version mismatch; older protocol-less builds may continue syncing hand features but will not publish the scene-object stream.
+2. Start TTS and additively load the Mobile Helper Lua object, or paste the matching script into a scripted helper object.
 3. Start the Python companion server on the TTS PC.
-4. Open `http://127.0.0.1:5001/table` on the host PC, or the host's LAN address from a touchscreen on the same trusted network.
-5. Choose a player camera. Use Refresh map to request a fresh scene snapshot.
+4. Scan the **Table Mode (Host Surface)** QR code printed in the companion console. The token is generated for that server process, exchanged for an HttpOnly cookie, and changes on restart. Do not distribute it outside the trusted play group.
+5. Choose a player camera. The scene map remains disabled until the host explicitly enables it; use Refresh map only after enabling it.
 
 The four angled camera presets currently center on world origin. The TopDown preset uses the native camera mode. The labels North/East/South/West are provisional world-axis labels and need visual confirmation in TTS. The scene map is a read-only X/Z projection; it is not a live 3D render and does not yet move TTS objects.
 
@@ -27,7 +27,7 @@ The four angled camera presets currently center on world origin. The TopDown pre
 - **TTS engine:** remains authoritative for object identity, transforms, physics, collisions, scripts, and rendering.
 - **Network boundary:** the companion's LAN connection serves browser interfaces to the host PC; it does not create LAN multiplayer for TTS itself. The TTS session remains one local hot-seat instance or uses TTS's normal Steam peer-to-peer multiplayer.
 - **Lua helper:** uses documented `getAllObjects()`, `Object.getGUID()`, `getPosition()`, `getRotation()`, `getBounds()`, and `Player.getHandObjects()` APIs to collect a sanitized scene snapshot. It uses TTS object events to refresh the snapshot.
-- **Python companion:** validates loopback-only Lua updates, bounds the snapshot size and field ranges, stores the current public scene, and emits it only to admin sessions.
+- **Python companion:** validates loopback-only Lua updates, bounds the snapshot size and field ranges, stores the host-level scene snapshot, and emits it only to a Table Mode session authorized by the startup token cookie. The scene inventory is withheld server-side until the host enables the map.
 - **Touchscreen UI:** renders a 2D read-only map and camera controls; it does not inject mouse events or simulate native TTS dragging.
 - **Private player interfaces:** player hands remain on the existing per-color mobile UI. Hand-object GUIDs are removed from the shared scene snapshot, and face-down cards are labelled generically.
 - **Workshop compatibility:** the helper is additive; no existing Workshop object or script is modified. Compatibility still needs live testing because some games use custom hand logic, unusual objects, fog-of-war, or large scripted tables.
@@ -78,8 +78,10 @@ For each, verify initial snapshot, object spawn/drop/rotate/destroy refresh, no 
 
 ## Visibility limitation
 
-The object map is not yet safe for hidden-information games. TTS exposes object hiding and Fog of War configuration, but the reviewed public API does not provide a general per-player visibility query for arbitrary custom hiders. The map is therefore a host-level inventory of scene objects, not a faithful projection of what each player is allowed to see. The UI hides it until the host explicitly acknowledges that the game has no hidden-information rules; this is an accidental-disclosure guard, not a technical visibility filter. Keep it off the shared display when a Workshop game relies on Fog of War, hidden zones, or custom `setHiddenFrom`/`setInvisibleTo` behavior.
+The object map is not yet safe for hidden-information games. TTS exposes object hiding and Fog of War configuration, but the reviewed public API does not provide a general per-player visibility query for arbitrary custom hiders. The map is therefore a host-level inventory of scene objects, not a faithful projection of what each player is allowed to see. The host acknowledgement is now enforced by the companion: while disabled, no scene-object inventory is sent to Table Mode browsers. Enabling it is still an explicit trust decision, not a technical visibility filter. Keep it disabled when a Workshop game relies on Fog of War, hidden zones, or custom `setHiddenFrom`/`setInvisibleTo` behavior.
 
 ## Security note
 
-The existing companion is designed for a trusted local network. Its admin role is a client-declared session flag rather than strong authentication. Do not expose port 5001 to an untrusted network or the public internet.
+Table Mode has a separate random per-process token distributed through the startup QR code. The browser exchanges it for an HttpOnly, SameSite=Strict cookie; the token is not embedded in the Table Mode JavaScript, and Table Mode socket events require both the cookie-authorized session and the admin flag. The scene-map enable/disable decision is enforced by the server and resets when the helper syncs a new TTS session.
+
+This is a lightweight shared-secret gate for a trusted LAN, not full user authentication: the initial link is delivered over local HTTP, so someone able to observe the LAN traffic could capture it. The original mobile admin interface retains its existing client-declared admin behavior. Do not expose port 5001 to an untrusted network or the public internet.
