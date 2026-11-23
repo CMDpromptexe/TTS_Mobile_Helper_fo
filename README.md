@@ -14,7 +14,7 @@ Play Tabletop Simulator in local Hotseat mode on a shared screen. Keep the table
 
 1. Load your game in Tabletop Simulator. Add the [Workshop helper](https://steamcommunity.com/sharedfiles/filedetails/?id=3739147243) to the existing table using **Additive Load**, or copy [the Lua script](helper_object_mobile_actions.lua) into a TTS object's script and use **Save & Play**.
 2. Download and extract the [Windows release](https://github.com/Serpens66/TTS_Mobile_Helper/releases). Run `TTSMobileHelper.exe` from the extracted folder on the PC running TTS. Keep the accompanying files in that folder.
-3. Connect the phones to the same local network as the PC. A local Wi-Fi hotspot also works. On a trusted network, scan the **Player** QR code on each player's phone and the **Admin** QR code on the host's phone. The player link assigns an available color.
+3. Connect the phones and touchscreen to the same local network as the PC. A local Wi-Fi hotspot also works. Scan the **Player** QR code on each player's phone and the **Admin** QR code on the host's phone. The player link assigns an available color. For the shared touchscreen, use the separate **Table Mode (Host Surface)** QR code printed at startup.
 
 When running the current source or a build made from it, load the matching Lua script from this checkout into the helper object. The bundled Python server and the Lua helper exchange a versioned table snapshot before enabling actions.
 
@@ -31,17 +31,15 @@ python server_mobile_actions.py
 
 ## Experimental Table Mode
 
-Open `http://127.0.0.1:5001/table` on the TTS PC, or use the PC's LAN address from a touchscreen on the same trusted network. Table Mode currently provides a separate shared-screen camera control page with overhead and four-sided camera presets. It requires the matching Lua helper script from this checkout.
+Table Mode is a separate shared-screen interface at `/table`. It currently provides a native TopDown camera preset, four angled camera presets, and a read-only X/Z map of objects in the TTS scene. It requires the matching protocol-v2 Lua helper and Python companion from this checkout.
 
-The camera controls currently center on the world origin. Table Mode does not yet provide touch-to-select, touch-to-move, or native multitouch object dragging. See [the prototype notes](docs/TABLE_MODE.md) for current scope and planned milestones.
+At server startup, the companion prints a **Table Mode (Host Surface)** QR code containing a one-time-per-process access link. Scan it with the shared touchscreen. The link grants an HttpOnly browser cookie and redirects to `/table`; the access token changes whenever the companion restarts. Do not share the QR code outside the trusted play group. The existing Admin QR code is for the original mobile admin interface, not Table Mode.
 
-## Experimental Table Mode
+The scene map is disabled on the server by default. The host must explicitly enable it after confirming the game has no Fog of War, hidden zones, or custom object-hiding rules. While disabled, the companion sends no scene-object inventory to Table Mode browsers. Once enabled, the map remains a **host-level view**, not a per-player visibility-filtered view; it still cannot detect every use of `setHiddenFrom`, `setInvisibleTo`, or custom hiders. Do not enable it for hidden-information games.
 
-Open `http://127.0.0.1:5001/table` on the TTS PC, or use the PC's LAN address from a touchscreen on the same trusted network. Table Mode currently includes a native TopDown camera preset, four angled camera presets, and a read-only host-level map of tabletop objects. It excludes objects in player hands and masks face-down card names, but it does not yet respect Fog of War, hidden zones, or custom object-hiding rules. The map is hidden by default until the host confirms the game has no hidden-information rules; that confirmation is only a reminder, not a technical visibility filter. Do not use the map for hidden-information games yet. It requires the matching protocol-v2 Lua helper and Python server from this checkout. Some older protocol-less helpers may still sync hands but will not publish the scene map.
+The map is read-only. It does not yet move objects or provide native multitouch dragging. See [the prototype notes](docs/TABLE_MODE.md) for architecture, API verification, compatibility tests, and planned milestones.
 
-The map does not yet move objects or provide native multitouch dragging. See [the prototype notes](docs/TABLE_MODE.md) for architecture, verified API behavior, compatibility tests, and next milestones.
-
-The companion's LAN connection is for phones and touchscreen browsers to reach the host PC; it does not add LAN multiplayer to TTS itself. Local hot-seat play remains the game mode for a shared physical table.
+The companion's browser/LAN connection only serves phones and the touchscreen from the host PC; it does not add LAN multiplayer to TTS itself. The game remains one local hot-seat TTS instance (or uses TTS's normal Steam multiplayer).
 
 ## Troubleshooting
 
