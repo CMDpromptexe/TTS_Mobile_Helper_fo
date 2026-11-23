@@ -65,8 +65,10 @@ class MobileHelperTest(unittest.TestCase):
         grant = self.http.get(f"/table?key={self.server.TABLE_MODE_TOKEN}")
         self.assertEqual(grant.status_code, 303)
         self.assertEqual(grant.headers.get("Location"), "/table")
+        grant.close()
         page = self.http.get("/table")
         self.assertEqual(page.status_code, 200)
+        page.close()
         admin = self.server.socketio.test_client(self.server.app, flask_test_client=self.http)
         self.clients.append(admin)
         admin.emit("join", {
