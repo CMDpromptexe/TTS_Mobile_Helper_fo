@@ -18,6 +18,7 @@
 
   const socket = io();
   let joined = false;
+  let mapEnabled = false;
 
   function setConnection(state, label) {
     connection.dataset.state = state;
@@ -49,9 +50,13 @@
     });
   }
 
-  function renderObjects(objects) {
-    currentObjects = Array.isArray(objects) ? objects : [];
-    if (!mapVisibilityConfirm.checked) {
+  function renderObjects(objects, enabled = mapEnabled) {
+    mapEnabled = enabled === true;
+    currentObjects = mapEnabled && Array.isArray(objects) ? objects : [];
+    mapVisibilityConfirm.checked = mapEnabled;
+    mapVisibilityConfirm.disabled = !joined;
+    refreshButton.disabled = !joined || !mapEnabled;
+    if (!mapEnabled) {
       sceneMapContent.hidden = true;
       objectCount.textContent = 'Map hidden until you confirm this is a public-information table.';
       objectMap.replaceChildren();
@@ -113,14 +118,17 @@
       color: 'White',
       client_id: clientId,
       is_admin: true,
+      is_table_mode: true,
       language: 'en'
     });
   });
 
   socket.on('join_success', () => {
     joined = true;
+    mapVisibilityConfirm.disabled = false;
+    refreshButton.disabled = !mapEnabled;
     setConnection('connected', 'Connected');
-    setFeedback('Connected. Waiting for the TTS helper to finish syncing.');
+    setFeedback('Connected. The scene map remains disabled until you explicitly enable it.');
   });
 
   socket.on('join_error', data => {
@@ -147,11 +155,29 @@
   });
 
   socket.on('table_objects_update', data => {
-    renderObjects(data?.objects);
+    renderObjects(data?.objects, data?.enabled === true);
+  });
+
+  socket.on('table_map_visibility_result', result => {
+    mapVisibilityConfirm.disabled = !joined;
+    if (!result?.ok) {
+      mapVisibilityConfirm.checked = mapEnabled;
+      setFeedback(result?.message || 'Could not change scene-map visibility.', 'error');
+    } else {
+      setFeedback(result.message || 'Scene-map visibility updated.', result.enabled ? 'success' : 'info');
+    }
   });
 
   mapVisibilityConfirm.addEventListener('change', () => {
-    renderObjects(currentObjects);
+    if (!joined) {
+      mapVisibilityConfirm.checked = false;
+      return;
+    }
+    mapVisibilityConfirm.disabled = true;
+    setFeedback(
+      mapVisibilityConfirm.checked ? 'Enabling the scene map on the companion…' : 'Disabling the scene map…'
+    );
+    socket.emit('table_map_visibility', {enabled: mapVisibilityConfirm.checked});
   });
 
   socket.on('table_objects_request_result', result => {
@@ -160,8 +186,8 @@
   });
 
   refreshButton.addEventListener('click', () => {
-    if (!joined) {
-      setFeedback('Connect to the companion server before refreshing the object map.', 'error');
+    if (!joined || !mapEnabled) {
+      setFeedback('Enable the scene map before requesting an object refresh.', 'error');
       return;
     }
     refreshButton.disabled = true;
@@ -177,10 +203,14 @@
 
   socket.on('disconnect', () => {
     joined = false;
+    mapEnabled = false;
+    mapVisibilityConfirm.checked = false;
+    mapVisibilityConfirm.disabled = true;
+    renderObjects([], false);
     setConnection('disconnected', 'Disconnected');
     setFeedback('Connection lost. Reconnecting…', 'error');
     setBusy(false);
-    refreshButton.disabled = false;
+    refreshButton.disabled = true;
   });
 
   buttons.forEach(button => {
