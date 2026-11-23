@@ -189,15 +189,31 @@ class MobileHelperTest(unittest.TestCase):
         self.assertFalse(self.events(player, "table_objects_update"))
 
         admin.emit("table_map_visibility", {"enabled": True})
-        self.assertTrue(self.events(admin, "table_map_visibility_result")[-1]["ok"])
-        updates = self.events(admin, "table_objects_update")
-        self.assertEqual(updates[-1]["objects"][0]["guid"], "abcdef")
-        self.assertTrue(updates[-1]["enabled"])
+        enabled_events = admin.get_received()
+        enabled_updates = [
+            event["args"][0] for event in enabled_events
+            if event["name"] == "table_objects_update"
+        ]
+        enabled_results = [
+            event["args"][0] for event in enabled_events
+            if event["name"] == "table_map_visibility_result"
+        ]
+        self.assertTrue(enabled_results[-1]["ok"])
+        self.assertEqual(enabled_updates[-1]["objects"][0]["guid"], "abcdef")
+        self.assertTrue(enabled_updates[-1]["enabled"])
 
         admin.emit("table_map_visibility", {"enabled": False})
-        self.assertTrue(self.events(admin, "table_map_visibility_result")[-1]["ok"])
-        updates = self.events(admin, "table_objects_update")
-        self.assertEqual(updates[-1], {"objects": [], "enabled": False})
+        disabled_events = admin.get_received()
+        disabled_updates = [
+            event["args"][0] for event in disabled_events
+            if event["name"] == "table_objects_update"
+        ]
+        disabled_results = [
+            event["args"][0] for event in disabled_events
+            if event["name"] == "table_map_visibility_result"
+        ]
+        self.assertTrue(disabled_results[-1]["ok"])
+        self.assertEqual(disabled_updates[-1], {"objects": [], "enabled": False})
 
         invalid = [{**objects[0], "x": 100001}]
         response = self.post("/table_objects", sequence=2, objects=invalid)
