@@ -156,7 +156,8 @@ class MobileHelperTest(unittest.TestCase):
             "is_admin": True,
             "is_table_mode": True,
         })
-        self.assertTrue(self.events(client, "join_success"))
+        self.assertTrue(self.events(client, "join_error"))
+        self.assertFalse(self.events(client, "join_success"))
         self.assertFalse(self.events(client, "table_objects_update"))
 
         client.emit("table_camera", {"target_color": "White", "preset": "overhead"})
