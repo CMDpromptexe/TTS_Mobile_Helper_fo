@@ -17,6 +17,8 @@ import engineio.async_drivers.threading  # needed by PyInstaller for async_mode=
 import struct
 import threading
 import re
+import hmac
+import secrets
 from urllib.parse import urlparse
 
 from tts_api_chatgpt import ExternalEditorApi as ExternalEditorApi_chatgpt
@@ -28,6 +30,11 @@ TTS_IMAGE_CACHE_DIRS = [
 
 app = Flask(__name__)
 socketio = SocketIO(app,cors_allowed_origins=None,async_mode="threading",allow_upgrades=False)
+
+# One per-process shared secret for the dedicated Table Mode surface.
+# The QR code printed at startup is the only intended way to distribute it.
+TABLE_MODE_TOKEN = secrets.token_urlsafe(32)
+TABLE_MODE_COOKIE = "tts_table_mode"
 
 
 @app.after_request
@@ -304,6 +311,7 @@ mobile_buttons = []
 hand_zone_colors = []
 seated_colors = []
 table_objects = []
+table_map_enabled = False
 STATE_LOCK = threading.RLock()
 LUA_PROTOCOL = 2
 LUA_TIMEOUT_SECONDS = 10
@@ -354,15 +362,21 @@ def emit_lua_status():
 
 
 def emit_table_objects_to_admins():
-    payload = {"objects": table_objects}
+    # Never send the host-level scene inventory until the Table Mode host
+    # explicitly enables it for this game session.
+    payload = {
+        "objects": table_objects if table_map_enabled else [],
+        "enabled": table_map_enabled,
+    }
     for sid, session in list(client_sessions.items()):
-        if session.get("is_admin"):
+        if session.get("is_table_admin"):
             socketio.emit("table_objects_update", payload, to=sid)
 
 
 def begin_sync():
-    global sync_run, table_ready, table_objects
+    global sync_run, table_ready, table_objects, table_map_enabled
     table_objects = []
+    table_map_enabled = False
     emit_table_objects_to_admins()
     sync_run = uuid.uuid4().hex
     table_ready = False
@@ -620,10 +634,11 @@ def print_start_qr_codes():
     if IPv4Address(local_ip).is_loopback:
         print("[WARNUNG] Diese Adresse ist nur auf diesem PC erreichbar.")
         print("          Gib die IPv4-Adresse im selben Netz wie das Handy mit --lan-ip an.")
-    print("Scanne den passenden QR-Code mit dem Handy:")
+    print("Scanne den passenden QR-Code mit dem Handy oder Table Mode display:")
     for label, url in [
         ("Admin", f"http://{local_ip}:{PORT}/?admin=1"),
         ("Spieler", f"http://{local_ip}:{PORT}/?join=player"),
+        ("Table Mode (Host Surface)", f"http://{local_ip}:{PORT}/table?key={TABLE_MODE_TOKEN}"),
     ]:
         print(f"\n[{label}] -> {url}")
         qr = qrcode.QRCode(version=1, box_size=2, border=1)
@@ -737,7 +752,24 @@ def health():
 
 @app.get("/table")
 def table_mode_page():
-    """Serve the experimental shared-table camera control surface."""
+    """Serve Table Mode only after the host's startup QR code grants a cookie."""
+    supplied = request.args.get("key")
+    cookie = request.cookies.get(TABLE_MODE_COOKIE, "")
+    if supplied is not None:
+        if not hmac.compare_digest(supplied, TABLE_MODE_TOKEN):
+            return "Invalid Table Mode link. Restart the companion to generate a fresh host link.", 403
+        response = redirect("/table", code=303)
+        response.set_cookie(
+            TABLE_MODE_COOKIE,
+            TABLE_MODE_TOKEN,
+            httponly=True,
+            secure=False,  # The companion currently serves local HTTP.
+            samesite="Strict",
+            max_age=8 * 60 * 60,
+        )
+        return response
+    if not hmac.compare_digest(cookie, TABLE_MODE_TOKEN):
+        return "Use the Table Mode (Host Surface) QR code printed by the companion at startup.", 403
     return send_from_directory(str(resource_file_path("static")), "table_mode.html")
 
 
@@ -1003,8 +1035,20 @@ def on_join(data):
         if not is_admin and color_is_occupied_by_other(color, client_id):
             emit("join_error", localized_payload("errors.color_occupied_by_other", language, {"color": color}, field="error"))
             return
+        table_cookie = request.cookies.get(TABLE_MODE_COOKIE, "")
+        is_table_admin = (
+            is_admin
+            and data.get("is_table_mode") is True
+            and hmac.compare_digest(table_cookie, TABLE_MODE_TOKEN)
+        )
         previous = client_sessions.get(sid)
-        client_sessions[sid] = {"client_id": client_id, "color": color, "is_admin": is_admin, "language": language}
+        client_sessions[sid] = {
+            "client_id": client_id,
+            "color": color,
+            "is_admin": is_admin,
+            "is_table_admin": is_table_admin,
+            "language": language,
+        }
         if previous and previous["color"] != color:
             leave_room(previous["color"])
         if previous:
@@ -1013,8 +1057,11 @@ def on_join(data):
             color_owners[color] = client_id
         join_room(color)
         emit("join_success", {"color": color})
-        if is_admin:
-            emit("table_objects_update", {"objects": table_objects})
+        if is_table_admin:
+            emit("table_objects_update", {
+                "objects": table_objects if table_map_enabled else [],
+                "enabled": table_map_enabled,
+            })
         emit_occupancy_to_all_clients()
 
 
@@ -1028,10 +1075,10 @@ def on_table_camera(data):
 
     with STATE_LOCK:
         session = client_sessions.get(sid)
-        if not session or not session.get("is_admin"):
+        if not session or not session.get("is_table_admin"):
             emit("table_camera_result", {
                 "ok": False,
-                "message": "Table Mode camera controls require an admin session.",
+                "message": "Open Table Mode using the host's Table Mode QR code.",
             })
             return
         if not table_ready:
@@ -1078,15 +1125,62 @@ def on_table_camera(data):
     })
 
 
+@socketio.on("table_map_visibility")
+def on_table_map_visibility(data):
+    global table_map_enabled
+    data = data if isinstance(data, dict) else {}
+    enabled = data.get("enabled")
+    sid = request.sid
+    with STATE_LOCK:
+        session = client_sessions.get(sid)
+        if not session or not session.get("is_table_admin"):
+            emit("table_map_visibility_result", {
+                "ok": False,
+                "enabled": False,
+                "message": "Open Table Mode using the host's Table Mode QR code.",
+            })
+            return
+        if type(enabled) is not bool:
+            emit("table_map_visibility_result", {
+                "ok": False,
+                "enabled": table_map_enabled,
+                "message": "Invalid scene-map visibility setting.",
+            })
+            return
+        if enabled and not table_ready:
+            emit("table_map_visibility_result", {
+                "ok": False,
+                "enabled": False,
+                "message": "Waiting for the TTS helper to finish syncing.",
+            })
+            return
+        table_map_enabled = enabled
+        emit_table_objects_to_admins()
+    emit("table_map_visibility_result", {
+        "ok": True,
+        "enabled": enabled,
+        "message": (
+            "Scene map enabled for this session. It is still a host-level view."
+            if enabled else "Scene map disabled; no object inventory is sent to Table Mode clients."
+        ),
+    })
+
+
 @socketio.on("table_request_objects")
 def on_table_request_objects():
     sid = request.sid
     with STATE_LOCK:
         session = client_sessions.get(sid)
-        if not session or not session.get("is_admin"):
+        if not session or not session.get("is_table_admin"):
             emit("table_objects_request_result", {
                 "ok": False,
-                "message": "Table Mode object refresh requires an admin session.",
+                "message": "Open Table Mode using the host's Table Mode QR code.",
+            })
+            return
+        if not table_map_enabled:
+            emit("table_objects_request_result", {
+                "ok": False,
+                "message": "Enable the scene map after confirming this is a public-information table.",
             })
             return
         if not table_ready:
@@ -1127,10 +1221,16 @@ def release_color(session):
 
 @socketio.on("disconnect")
 def on_disconnect():
+    global table_map_enabled
     with STATE_LOCK:
         session = client_sessions.pop(request.sid, None)
         if session:
             release_color(session)
+            if session.get("is_table_admin") and not any(
+                item.get("is_table_admin") for item in client_sessions.values()
+            ):
+                table_map_enabled = False
+                emit_table_objects_to_admins()
             emit_occupancy_to_all_clients()
 
 
