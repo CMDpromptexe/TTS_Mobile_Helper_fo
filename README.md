@@ -33,7 +33,7 @@ python server_mobile_actions.py
 
 Table Mode is a separate shared-screen interface at `/table`. It currently provides a native TopDown camera preset, four angled camera presets, and a read-only X/Z map of objects in the TTS scene. It requires the matching protocol-v2 Lua helper and Python companion from this checkout.
 
-At server startup, the companion prints a **Table Mode (Host Surface)** QR code containing a one-time-per-process access link. Scan it with the shared touchscreen. The link grants an HttpOnly browser cookie and redirects to `/table`; the access token changes whenever the companion restarts. Do not share the QR code outside the trusted play group. The existing Admin QR code is for the original mobile admin interface, not Table Mode.
+At server startup, the companion prints a **Table Mode (Host Surface)** QR code containing a per-process access link. Scan it with the shared touchscreen. The link grants an HttpOnly browser cookie and redirects to `/table`; the access token changes whenever the companion restarts. Do not share the QR code outside the trusted play group. The existing Admin QR code is for the original mobile admin interface, not Table Mode.
 
 The scene map is disabled on the server by default. The host must explicitly enable it after confirming the game has no Fog of War, hidden zones, or custom object-hiding rules. While disabled, the companion sends no scene-object inventory to Table Mode browsers. Once enabled, the map remains a **host-level view**, not a per-player visibility-filtered view; it still cannot detect every use of `setHiddenFrom`, `setInvisibleTo`, or custom hiders. Do not enable it for hidden-information games.
 
